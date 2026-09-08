@@ -149,7 +149,7 @@ def test_fees_and_slippage_reduce_net_result() -> None:
     setup = long_setup(stop=90.0, tp1=110.0, tp2=120.0, tp3=130.0)
     candles = (
         Candle(1_000, 100, 101, 99, 100),
-        Candle(2_000, 100, 131, 101, 130),
+        Candle(2_000, 100, 131, 100, 130),
     )
 
     result = replay_setup(
