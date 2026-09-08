@@ -4,7 +4,7 @@ on:
   push:
     branches: [feat/import-bybit-components]
     paths:
-      - .github/import_payload.b64
+      - .github/import_payload.ready
 
 permissions:
   contents: write
@@ -21,7 +21,8 @@ jobs:
 
       - name: Decode sanitized payload
         run: |
-          base64 -d .github/import_payload.b64 > /tmp/oss-import.zip
+          cat .github/import_payload.part-* > /tmp/oss-import.b64
+          base64 -d /tmp/oss-import.b64 > /tmp/oss-import.zip
           unzip -oq /tmp/oss-import.zip -d .
 
       - name: Fail closed on secret-bearing artifacts
@@ -44,6 +45,8 @@ jobs:
                   continue
               rel = str(p)
               n = p.name.lower()
+              if rel.startswith('.github/import_payload.'):
+                  continue
               if n == '.env' or (n.startswith('.env.') and n != '.env.example'):
                   findings.append((rel, 'runtime env / env backup'))
               if n == '.bridge_secret' or '.bak' in n or 'backup' in n:
@@ -71,7 +74,7 @@ jobs:
 
       - name: Commit imported source and remove transport files
         run: |
-          rm -f .github/import_payload.b64
+          rm -f .github/import_payload.part-* .github/import_payload.ready
           rm -f .github/workflows/import-sanitized-components.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
