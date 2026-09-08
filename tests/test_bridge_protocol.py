@@ -56,15 +56,9 @@ def test_verifier_rejects_stale_malformed_and_tampered_requests() -> None:
     body = canonical_json_bytes({"event": "EXECUTE", "signal_id": "abc"})
     signature = sign_bridge_body("secret", 1_700_000_000, body)
 
-    assert not verify_bridge_signature(
-        "secret", "1700000000", signature, body, now=1_700_000_031
-    )
-    assert not verify_bridge_signature(
-        "secret", "not-a-time", signature, body, now=1_700_000_000
-    )
-    assert not verify_bridge_signature(
-        "secret", "1700000000", "0" * 64, body, now=1_700_000_000
-    )
+    assert not verify_bridge_signature("secret", "1700000000", signature, body, now=1_700_000_031)
+    assert not verify_bridge_signature("secret", "not-a-time", signature, body, now=1_700_000_000)
+    assert not verify_bridge_signature("secret", "1700000000", "0" * 64, body, now=1_700_000_000)
     assert not verify_bridge_signature(
         "secret", "1700000000", signature, body + b" ", now=1_700_000_000
     )
