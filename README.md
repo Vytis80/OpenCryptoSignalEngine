@@ -42,3 +42,20 @@ Paper / Demo Execution
 Backtesting & Performance Analysis
     ↓
 Discord Monitoring
+
+## Core Features
+
+The project is being built around the following capabilities:
+
+- Multi-timeframe market analysis
+- Trend and market structure detection
+- LONG / SHORT signal generation
+- Configurable stop-loss and take-profit logic
+- Dynamic trade management
+- Risk-based position sizing
+- Historical backtesting
+- Paper and demo trading
+- Exchange API integrations
+- WebSocket and REST market data handling
+- Discord alerts and monitoring
+- Modular strategy and execution components
