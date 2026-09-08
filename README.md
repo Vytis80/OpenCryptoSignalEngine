@@ -12,7 +12,7 @@ Open-source Bybit-focused crypto market analysis, signal generation, risk manage
 | Component | Version | Status | Purpose |
 | --- | --- | --- | --- |
 | [Bybit Scanner V2.6](apps/scanner_v2_6/) | `2.6.0-rc2` | **Active** | Current multi-timeframe signal core and scanner |
-| [Bybit Demo AutoTrader](apps/autotrader/) | `1.5.3` | **Active / Demo only** | Executes scanner `EXECUTE` events in Bybit Demo Trading |
+| [Bybit Demo AutoTrader](apps/autotrader/) | `1.5.4` | **Active / Demo only** | Executes scanner `EXECUTE` events in Bybit Demo Trading |
 | [Bybit Scanner V2.5](legacy/scanner_v2_5/) | `2.5.1` | **Frozen reference** | Preserved baseline for regression comparison and replay |
 
 V2.5 is intentionally retained as a frozen reference rather than silently overwritten by V2.6. This makes strategy evolution and replay comparisons auditable.
@@ -33,6 +33,8 @@ Signal lifecycle + monitoring
 Signed bridge
         ↓
 Bybit Demo AutoTrader
+        ↓
+Shared TP protection lifecycle
         ↓
 TP fills + dynamic stop protection + statistics
 ```
@@ -64,12 +66,26 @@ The current project is deliberately **Bybit-only**. The public repository does n
 - leverage target with instrument-limit fallback
 - initial protective SL attached before TP setup
 - real reduce-only TP1 / TP2 / TP3 orders
-- TP1 fill → remaining SL can move to breakeven
-- TP2 fill → remaining SL can move to TP1
+- TP1 full fill → remaining SL can move to breakeven
+- TP2 full fill → remaining SL can move to TP1
+- automatic TP protection targets are derived from the shared exchange-independent risk lifecycle
 - monotonic stop guard prevents loosening protection
 - bounded Smart Margin assistance using the real liquidation price
 - durable SQLite state and restart recovery
 - signed bridge and fail-closed Discord mutations
+
+### Deterministic replay/backtesting
+
+- normalized OHLCV timestamps and validated candle models
+- deterministic LONG/SHORT setup replay
+- explicit same-candle stop/target collision policy
+- configurable fees and slippage
+- shared TP1 → breakeven → TP2 → TP1 protection lifecycle
+- R-based outcomes, profit factor, MFE/MAE and maximum drawdown
+- per-setup summaries
+- synthetic public fixture and runnable example with no private trading data
+
+See [docs/backtesting.md](docs/backtesting.md).
 
 ### Frozen V2.5 baseline
 
@@ -87,10 +103,13 @@ The current project is deliberately **Bybit-only**. The public repository does n
 ├── legacy/
 │   └── scanner_v2_5/       # frozen reference baseline
 ├── src/
-│   └── open_crypto_signal_engine/  # shared package foundation
-├── tests/                  # repository-level tests
+│   └── open_crypto_signal_engine/  # shared risk + backtesting package
+├── tests/                  # repository-level deterministic tests
+├── examples/
+│   └── replay/             # synthetic replay fixture/example
 ├── docs/
 │   ├── architecture.md
+│   ├── backtesting.md
 │   └── credential-safety.md
 ├── .github/
 │   ├── workflows/
@@ -132,7 +151,15 @@ cp .env.example .env
 ./install.sh
 ```
 
-The AutoTrader is designed for **Bybit Demo Trading**. Do not put a production exchange API key into the example configuration or Git history.
+The AutoTrader is designed for **Bybit Demo Trading**. Its installer expects a full repository clone because the runtime installs and uses the shared risk package. Do not put a production exchange API key into the example configuration or Git history.
+
+Synthetic replay example:
+
+```bash
+cd OpenCryptoSignalEngine
+pip install -e ".[dev]"
+python examples/replay/run_replay.py
+```
 
 ## Credential safety
 
@@ -154,7 +181,7 @@ See [docs/credential-safety.md](docs/credential-safety.md) and [SECURITY.md](SEC
 
 ## Testing
 
-Repository foundation:
+Repository/shared package:
 
 ```bash
 pip install -e ".[dev]"
@@ -163,13 +190,15 @@ ruff check src tests
 ruff format --check src tests
 ```
 
-Component dependencies are intentionally isolated. CI installs and tests V2.6, the Demo AutoTrader, and the frozen V2.5 baseline independently.
+Component dependencies are intentionally isolated. CI installs and tests V2.6, the Demo AutoTrader plus the shared risk package, and the frozen V2.5 baseline independently.
 
 Live connectivity checks are not run in CI because they require user credentials or public-network access. Unit/offline tests must not require real credentials.
 
 ## Risk management
 
-The project separates signal generation from execution and management. The Demo AutoTrader currently includes a staged protection lifecycle where TP1 can protect the remainder at breakeven and TP2 can advance the remaining stop to TP1, subject to fill verification and monotonic safety guards.
+Signal generation, pure risk policy, exchange execution and replay are separate layers. The shared lifecycle defines deterministic protection intent: initial SL, TP1 → breakeven, TP2 → TP1, explicit invalidation, and a monotonic rule that never loosens an already stricter stop.
+
+AutoTrader 1.5.4 uses that shared post-TP contract for automatic TP protection while retaining exchange verification, retry, persistence and recovery logic in the execution layer.
 
 Risk behavior is software behavior, not a guarantee of profitable trading. Crypto derivatives can result in rapid losses.
 
@@ -177,11 +206,11 @@ Risk behavior is software behavior, not a guarantee of profitable trading. Crypt
 
 The repository is under active development. Current priorities are:
 
-1. increase deterministic test coverage around scanner and execution behavior;
-2. formalize shared interfaces between scanner, bridge and executor;
-3. expand reproducible replay/backtesting workflows;
+1. keep Scanner V2.6, AutoTrader and the frozen V2.5 baseline covered by deterministic CI;
+2. expand reproducible replay datasets and strategy-level regression coverage without private account data;
+3. formalize additional shared interfaces between scanner, bridge and executor only where they reduce risk rather than add coupling;
 4. publish tagged development releases after validation;
-5. keep the V2.5 baseline frozen for regression checks.
+5. keep credential scanning and the V2.5 frozen baseline as permanent safety gates.
 
 See [CHANGELOG.md](CHANGELOG.md) and the open GitHub issues for tracked work.
 

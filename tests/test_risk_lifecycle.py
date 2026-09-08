@@ -5,6 +5,7 @@ from open_crypto_signal_engine.risk import (
     LifecycleStage,
     RiskPlan,
     evaluate_lifecycle,
+    evaluate_post_tp_protection,
     is_stricter_stop,
 )
 
@@ -123,6 +124,55 @@ def test_tp2_moves_stop_to_tp1_when_needed(
     assert decision.stage is LifecycleStage.TP1_LOCKED
     assert decision.effective_stop == expected_stop
     assert decision.move_stop is True
+
+
+@pytest.mark.parametrize(
+    ("side", "entry", "tp1", "tp1_hit", "tp2_hit", "current", "stage", "stop", "move"),
+    [
+        ("LONG", 100.0, 105.0, True, False, 95.0, LifecycleStage.BREAKEVEN, 100.0, True),
+        ("LONG", 100.0, 105.0, True, True, 100.0, LifecycleStage.TP1_LOCKED, 105.0, True),
+        ("LONG", 100.0, 105.0, True, True, 107.0, LifecycleStage.TP1_LOCKED, 107.0, False),
+        ("SHORT", 100.0, 95.0, True, False, 105.0, LifecycleStage.BREAKEVEN, 100.0, True),
+        ("SHORT", 100.0, 95.0, True, True, 100.0, LifecycleStage.TP1_LOCKED, 95.0, True),
+        ("SHORT", 100.0, 95.0, True, True, 93.0, LifecycleStage.TP1_LOCKED, 93.0, False),
+    ],
+)
+def test_post_tp_contract_supports_mutable_execution_state(
+    side: str,
+    entry: float,
+    tp1: float,
+    tp1_hit: bool,
+    tp2_hit: bool,
+    current: float,
+    stage: LifecycleStage,
+    stop: float,
+    move: bool,
+) -> None:
+    decision = evaluate_post_tp_protection(
+        side,
+        entry,
+        tp1,
+        tp1_hit=tp1_hit,
+        tp2_hit=tp2_hit,
+        current_stop=current,
+    )
+
+    assert decision.stage is stage
+    assert decision.effective_stop == stop
+    assert decision.move_stop is move
+    assert decision.close_required is False
+
+
+def test_post_tp_contract_fails_closed_before_tp1() -> None:
+    with pytest.raises(ValueError, match="confirmed TP1 or TP2"):
+        evaluate_post_tp_protection(
+            "LONG",
+            100.0,
+            105.0,
+            tp1_hit=False,
+            tp2_hit=False,
+            current_stop=95.0,
+        )
 
 
 def test_invalidation_supersedes_profit_milestones() -> None:
