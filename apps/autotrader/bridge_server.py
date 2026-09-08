@@ -36,7 +36,7 @@ class BridgeServer:
     async def health(self, request):
         return web.json_response({
             "ok": True,
-            "service": "BYBIT_Demo_AutoTrader_V1.5.3",
+            "service": "BYBIT_Demo_AutoTrader_V1.5.4",
             "demo": True,
             "smart_position_shadow": bool(self.cfg.smart_position_shadow_enabled),
             "tp2_lock_sl_to_tp1": bool(self.cfg.tp2_lock_sl_to_tp1_enabled),
