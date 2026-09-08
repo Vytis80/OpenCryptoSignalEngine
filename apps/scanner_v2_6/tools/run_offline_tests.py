@@ -10,6 +10,7 @@ TESTS = (
     "self_test.py",
     "test_bybit_adapter_unit.py",
     "test_bybit_rate_limit_safety.py",
+    "test_bridge_protocol_contract.py",
     "test_dynamic_validity.py",
     "test_entry_window_lifecycle.py",
     "test_safe_core_parity.py",
