@@ -1,42 +1,43 @@
-# V2.6.0-rc1 release notes
+# V2.6.0-rc2 release notes
 
-## Signalų branduolys
+## Signal core
 
-- V2.5 funkcija palikta užšaldyta kaip palyginimo bazė; gamybinis `analyze` yra naujas v2.6 branduolys.
-- Pridėtas 4H režimas ir bent 2 uždarytų 1M patvirtinimų hard gate.
-- 5M trigeriai sugriežtinti: patvirtintas breakout/breakdown retestas, EMA reakcija arba liquidity sweep/reclaim.
-- Pridėti neapeinami 4H/1H/15M krypties, spread, ATR diapazono, paskutinės 5M žvakės dydžio, anti-chase ir rejection vartai.
-- Struktūrinis SL tikrinamas ir ATR, ir procentais. Per platus BTR tipo setupas atmetamas, o ne siunčiamas su nepraktiškais lygiais.
-- Kliūtis imama iš artimiausio 15M arba 1H support/resistance; saugi erdvė turi būti bent `1.8R`.
-- TP lieka tikslūs `1R/2R/3R`; EXECUTE/POTENTIAL ribos lieka `82/70`.
-- `Setup Score` ir `Historical edge` atskirti. Istorinis edge skaičiuojamas pagal tą patį setupą, kryptį ir core versiją su 40/30/30 TP prielaida bei kaštais.
-- Pridėtas be-lookahead Bybit 1m replay, v2.5/v2.6 A-B ataskaita ir fail-closed promotion gate.
-- SHADOW nekeičia v2.6 sprendimo, Entry, SL ar TP.
+- V2.5 remains frozen as the comparison baseline; production `analyze` uses the V2.6 signal core.
+- 4H regime and at least two closed 1M confirmations are hard gates.
+- 5M triggers require a confirmed breakout/breakdown retest, EMA reaction, or liquidity sweep/reclaim.
+- 4H/1H/15M direction, spread, ATR range, last-5M candle size, anti-chase and rejection gates are non-bypassable.
+- Structural SL is checked in both ATR and percentage terms; impractically wide setups are rejected instead of being emitted with poor levels.
+- The nearest 15M/1H support or resistance is used as the obstacle; safe room must satisfy the configured R threshold.
+- Targets remain exact 1R / 2R / 3R and EXECUTE/POTENTIAL thresholds remain 82 / 70.
+- `Setup Score` and `Historical edge` are separate concepts. Historical edge is evaluated for the same setup family, direction and core version using the configured TP fractions and costs.
+- Bybit 1M replay is no-lookahead, V2.5/V2.6 A/B comparison is preserved, and promotion is fail-closed.
+- SHADOW remains observational and does not mutate V2.6 EXECUTE, Entry, SL or TP decisions.
 
-## Nauja v2.6
+## Runtime and reliability
 
-- 42 deep-analysis slotai per ciklą, iš jų 20 skirta least-recently-scanned fair rotation.
-- Coverage laikomas atliktu tik po sėkmingos pilnos analizės; klaidos automatiškai lieka greitam retry.
-- ACTIVE duomenų freshness guard; stale kainos/kontekstas negali sukelti invalidation ar management sprendimo.
-- Bybit WS watchdog, per-symbol freshness ir pagreitintas REST fallback.
-- Bybit HTTP 403 atveju 10 min fail-fast IP cooldown; 429/5xx/webhook retry ir telemetrija.
-- Vienkartiniai `DATA STALE` / `DATA RECOVERED` pranešimai.
-- Post-TP struktūrinis invalidation uždaro likusios pozicijos signalo lifecycle; BTR tipo amžinas `PROTECT` nepaliekamas.
-- Discord shared-bot `merge`: `bybit_*` komandos įkeliamos neliečiant `unrelated_*`.
-- Kas 60 s missing-only command audit atkuria Bybit komandas po seno another integration bulk sync.
-- Discord Gateway exponential backoff išlieka, bet delay ribojamas iki 60 s.
-- Discord ilgi command atsakymai skaidomi į leistinus gabalus.
-- Webhook alert delivery retry ir bendras failure skaitiklis.
-- `/bybit_edge_stats`, cost-adjusted display-only R, išplėsti setup/shadow/health duomenys.
-- Klaidingai kaip tikimybė suprantamas `Confidence` pakeistas į `Setup Score`; `Probability` nerodomas.
-- Secret-safe another integration Discord nustatymų importas, preflight ir dinaminis systemd diegimas naujai VM.
-- Nauja švari DB: `data/bybit_crypto_scanner_v2_6.db`.
+- 42 deep-analysis slots per cycle, with 20 reserved for least-recently-scanned fair rotation.
+- Coverage advances only after a successful full analysis; failures remain eligible for fast retry.
+- ACTIVE freshness guard prevents stale price/context data from triggering invalidation or management decisions.
+- Bybit WebSocket watchdog, per-symbol freshness tracking and accelerated REST fallback.
+- Bybit HTTP 403 uses a 10-minute fail-fast cooldown; 429/5xx and webhook delivery have retry/telemetry handling.
+- One-shot `DATA STALE` and `DATA RECOVERED` notifications.
+- Post-TP structural invalidation closes the remaining signal lifecycle instead of leaving a permanent protect state.
+- Discord Gateway reconnect delay is capped at 60 seconds and long command responses are chunked safely.
+- Webhook alert delivery retries and failure counters are exposed through health/status reporting.
+- `Confidence` wording was replaced with `Setup Score`; the scanner does not present the score as a probability.
+
+## RC2 delta
+
+- V2.6 Discord commands use the dedicated `byscan_*` namespace instead of the older `bybit_*` namespace, avoiding collisions with the frozen V2.5 integration.
+- Shared Discord command merge/audit restores only missing `byscan_*` commands and does not bulk-delete unrelated commands owned by the same application.
+- Replay validation skips symbols that are no longer valid/available in the current Bybit instrument universe instead of treating those markets as strategy failures.
+- Runtime version reporting is aligned to `2.6.0-rc2`.
 
 ## Release gate
 
-- 22 offline testai.
-- Python compileall.
-- Shell sintaksės patikra.
-- V2.6 strategy hash, užšaldyto v2.5 AST hash ir secret scan.
-- Viešas Bybit live testas atliekamas pačioje naujoje VM su `preflight.py --live`.
-- RC1 nepromotinamas į gamybą, kol `tools/replay_gate.py` negrąžina `PASS` su pakankama imtimi.
+- 22 offline tests.
+- Python compile checks.
+- Shell syntax checks where applicable.
+- V2.6 strategy hash, frozen V2.5 baseline integrity checks and secret scanning.
+- Public Bybit live preflight is intentionally executed only on the deployment host; public CI remains network-free and credential-free.
+- Promotion remains fail-closed until replay validation returns PASS with a sufficient sample.
