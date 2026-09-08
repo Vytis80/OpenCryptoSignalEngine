@@ -49,6 +49,65 @@ jobs:
             exit 1
           fi
 
+  release-readiness:
+    name: Release readiness / package build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install release tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install "build>=1.2,<2"
+
+      - name: Validate release metadata and tracked artifacts
+        run: python tools/check_release_readiness.py
+
+      - name: Build wheel and source distribution
+        run: python -m build
+
+      - name: Smoke-install built wheel in a clean virtual environment
+        run: |
+          python -m venv .release-smoke-venv
+          .release-smoke-venv/bin/python -m pip install --upgrade pip
+          .release-smoke-venv/bin/pip install --no-deps dist/*.whl
+          cd /tmp
+          "$GITHUB_WORKSPACE/.release-smoke-venv/bin/python" - <<'PY'
+          import open_crypto_signal_engine
+          import open_crypto_signal_engine.backtesting
+          import open_crypto_signal_engine.protocol
+          import open_crypto_signal_engine.risk
+
+          print("wheel smoke import passed", open_crypto_signal_engine.__version__)
+          PY
+
+      - name: Show release artifact contents
+        run: |
+          ls -lh dist
+          python - <<'PY'
+          import tarfile
+          import zipfile
+          from pathlib import Path
+
+          for artifact in sorted(Path("dist").iterdir()):
+              print(f"\n{artifact.name}")
+              if artifact.suffix == ".whl":
+                  with zipfile.ZipFile(artifact) as archive:
+                      for name in archive.namelist():
+                          print(name)
+              elif artifact.name.endswith(".tar.gz"):
+                  with tarfile.open(artifact, "r:gz") as archive:
+                      for name in archive.getnames():
+                          print(name)
+          PY
+
   scanner-v26:
     name: Bybit Scanner V2.6 offline gate
     runs-on: ubuntu-latest
