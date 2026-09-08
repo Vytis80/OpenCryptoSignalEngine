@@ -1,0 +1,80 @@
+name: Import sanitized components
+
+on:
+  push:
+    branches: [feat/import-bybit-components]
+    paths:
+      - .github/import_payload.b64
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout import branch
+        uses: actions/checkout@v7
+        with:
+          ref: feat/import-bybit-components
+          fetch-depth: 0
+
+      - name: Decode sanitized payload
+        run: |
+          base64 -d .github/import_payload.b64 > /tmp/oss-import.zip
+          unzip -oq /tmp/oss-import.zip -d .
+
+      - name: Fail closed on secret-bearing artifacts
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          import sys
+
+          root = Path('.')
+          findings = []
+          webhook = re.compile(r'https?://(?:canary\.|ptb\.)?discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9._-]+', re.I)
+          private_key = re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----')
+          home_path = re.compile(r'/home/[A-Za-z0-9._-]+/')
+          long_id = re.compile(r'(?<!\d)1\d{17,19}(?!\d)')
+          env_secret = re.compile(r'^[ \t]*([A-Z0-9_]*(?:TOKEN|SECRET|API_KEY|API_SECRET|WEBHOOK(?:_URL)?)[A-Z0-9_]*)[ \t]*=[ \t]*(.*?)[ \t]*$', re.M)
+
+          for p in root.rglob('*'):
+              if not p.is_file() or '.git' in p.parts:
+                  continue
+              rel = str(p)
+              n = p.name.lower()
+              if n == '.env' or (n.startswith('.env.') and n != '.env.example'):
+                  findings.append((rel, 'runtime env / env backup'))
+              if n == '.bridge_secret' or '.bak' in n or 'backup' in n:
+                  findings.append((rel, 'secret/backup artifact'))
+              if n.endswith(('.db', '.sqlite', '.sqlite3', '.log')) or '.db.' in n:
+                  findings.append((rel, 'runtime database/log artifact'))
+              try:
+                  text = p.read_text(encoding='utf-8')
+              except Exception:
+                  continue
+              for label, rx in [('Discord webhook', webhook), ('private key', private_key), ('private home path', home_path), ('account-specific long ID', long_id)]:
+                  if rx.search(text):
+                      findings.append((rel, label))
+              if p.name == '.env.example':
+                  for key, value in env_secret.findall(text):
+                      value = value.strip().strip('"\'')
+                      if value and value != '0' and not key.startswith(('REQUIRE_', 'ENABLE_', 'DISABLE_')):
+                          findings.append((rel, f'non-empty secret placeholder: {key}'))
+
+          if findings:
+              for item in findings:
+                  print(item)
+              sys.exit('Refusing to commit sanitized import: safety scan failed')
+          print('Import safety scan passed')
+
+      - name: Commit imported source and remove transport files
+        run: |
+          rm -f .github/import_payload.b64
+          rm -f .github/workflows/import-sanitized-components.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: import sanitized Bybit scanner and demo trader sources"
+          git push origin HEAD:feat/import-bybit-components
