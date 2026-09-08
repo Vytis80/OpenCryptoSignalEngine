@@ -64,6 +64,19 @@ jobs:
           long_id = re.compile(r'(?<!\d)1\d{17,19}(?!\d)')
           env_secret = re.compile(r'^[ \t]*([A-Z0-9_]*(?:TOKEN|SECRET|API_KEY|API_SECRET|WEBHOOK(?:_URL)?)[A-Z0-9_]*)[ \t]*=[ \t]*(.*?)[ \t]*$', re.M)
 
+          def is_safe_example_value(raw: str) -> bool:
+              value = raw.strip().strip('"\'')
+              low = value.lower()
+              if not value or low in {'0', '1', 'true', 'false', 'none', 'null', 'changeme', 'replace_me', 'placeholder'}:
+                  return True
+              if low.startswith(('your_', 'replace_', 'example_', 'dummy_', 'test_')):
+                  return True
+              if value.startswith('${') and value.endswith('}'):
+                  return True
+              if value.startswith('<') and value.endswith('>'):
+                  return True
+              return False
+
           for p in root.rglob('*'):
               if not p.is_file() or '.git' in p.parts:
                   continue
@@ -92,9 +105,8 @@ jobs:
                       findings.append((rel, label))
               if p.name == '.env.example':
                   for key, value in env_secret.findall(text):
-                      value = value.strip().strip('"\'')
-                      if value and value != '0' and not key.startswith(('REQUIRE_', 'ENABLE_', 'DISABLE_')):
-                          findings.append((rel, f'non-empty secret placeholder: {key}'))
+                      if not is_safe_example_value(value) and not key.startswith(('REQUIRE_', 'ENABLE_', 'DISABLE_')):
+                          findings.append((rel, f'real-looking secret value in .env.example: {key}'))
 
           if findings:
               for item in findings:
