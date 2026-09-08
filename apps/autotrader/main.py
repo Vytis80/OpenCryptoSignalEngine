@@ -12,7 +12,7 @@ from bridge_server import BridgeServer
 from bybit_demo import BybitDemo
 from config import Config
 from discord_control import DiscordControl
-from executor import DemoExecutor
+from lifecycle_executor import LifecycleDemoExecutor
 from notifier import Notifier
 from storage import Storage
 from systemd_notify import notify as systemd_notify, watchdog_loop
@@ -37,7 +37,7 @@ async def amain():
 
     # Build notifier first, then attach the Discord bot instance after DiscordControl is created.
     notifier = Notifier(None, cfg.discord_channel_id)
-    executor = DemoExecutor(cfg, bybit, storage, notifier)
+    executor = LifecycleDemoExecutor(cfg, bybit, storage, notifier)
     discord_control = DiscordControl(cfg, executor, bybit, storage)
     notifier.bot = discord_control.bot if cfg.discord_bot_token else None
     notifier.shadow_view_factory = discord_control.make_shadow_view
