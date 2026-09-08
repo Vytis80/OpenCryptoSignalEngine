@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest an improvement or new capability
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem would this feature solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior or interface you would like.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Market data
+        - Multi-timeframe analysis
+        - Signal generation
+        - Risk management
+        - Backtesting
+        - Bybit integration
+        - Paper/demo execution
+        - Discord/monitoring
+        - Documentation/tooling
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Trading or safety considerations
+      description: Note any execution, risk-management, data-freshness or security implications.
