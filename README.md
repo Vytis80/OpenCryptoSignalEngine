@@ -144,3 +144,13 @@ Planned development areas include:
 - Improve Discord monitoring and bot health reporting
 - Expand automated testing and validation
 - Improve documentation and examples
+
+## Disclaimer
+
+This project is provided for educational, research and software development purposes only.
+
+It does not constitute financial or investment advice. Cryptocurrency and derivatives trading involve substantial risk and may result in the loss of capital.
+
+Users are responsible for evaluating the software, exchange rules, configuration and risk parameters before using any part of the project.
+
+Paper and demo trading are strongly recommended before considering any live trading environment.
