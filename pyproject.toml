@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "OpenCryptoSignalEngine"
+version = "0.1.0.dev0"
+description = "Open-source multi-timeframe crypto market analysis, signal generation, risk management, backtesting and paper trading framework focused on Bybit."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Vytis80" },
+]
+keywords = [
+  "crypto",
+  "bybit",
+  "algorithmic-trading",
+  "market-analysis",
+  "backtesting",
+  "paper-trading",
+  "risk-management",
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Financial and Insurance Industry",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business :: Financial :: Investment",
+  "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "pytest-cov>=6,<7",
+  "ruff>=0.12,<1",
+]
+
+[project.urls]
+Homepage = "https://github.com/Vytis80/OpenCryptoSignalEngine"
+Repository = "https://github.com/Vytis80/OpenCryptoSignalEngine"
+Issues = "https://github.com/Vytis80/OpenCryptoSignalEngine/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
