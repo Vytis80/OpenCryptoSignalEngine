@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-import re
 import time
 from typing import Any
 
-
-SYMBOL_RE = re.compile(r"^[A-Z0-9]{3,24}$")
+from open_crypto_signal_engine.protocol import normalize_side, normalize_symbol
 
 
 def _identifier(value: Any, name: str) -> str:
@@ -16,15 +14,6 @@ def _identifier(value: Any, name: str) -> str:
         raise ValueError(f"{name} is required for idempotency")
     if len(text) > 128:
         raise ValueError(f"{name} is too long")
-    return text
-
-
-def _symbol(value: Any) -> str:
-    text = str(value).upper().replace("-", "").replace("_", "").replace("/", "")
-    if text.endswith("USDTUSDT"):
-        text = text[:-4]
-    if not SYMBOL_RE.fullmatch(text):
-        raise ValueError("invalid symbol")
     return text
 
 
@@ -55,14 +44,10 @@ class ExecuteSignal:
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "ExecuteSignal":
-        symbol = _symbol(payload["symbol"])
-        side = str(payload["side"]).upper()
-        if side not in {"LONG", "SHORT"}:
-            raise ValueError("side must be LONG or SHORT")
         obj = cls(
             signal_id=_identifier(payload.get("signal_id") or payload.get("id"), "signal_id"),
-            symbol=symbol,
-            side=side,
+            symbol=normalize_symbol(payload["symbol"]),
+            side=normalize_side(payload["side"]),
             entry=float(payload["entry"]),
             entry_low=float(payload.get("entry_low", payload["entry"])),
             entry_high=float(payload.get("entry_high", payload["entry"])),
@@ -123,7 +108,7 @@ class ManagementEvent:
         obj = cls(
             event_id=_identifier(payload.get("event_id") or payload.get("id"), "event_id"),
             signal_id=_identifier(payload.get("signal_id"), "signal_id"),
-            symbol=_symbol(payload["symbol"]),
+            symbol=normalize_symbol(payload["symbol"]),
             action=str(payload["action"]).upper(),
             reason=str(payload.get("reason", payload.get("note", ""))),
             price=float(payload["price"]) if payload.get("price") is not None else None,

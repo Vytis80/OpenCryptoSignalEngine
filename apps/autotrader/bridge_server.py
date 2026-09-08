@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import logging
-import time
 
 from aiohttp import web
+from open_crypto_signal_engine.protocol import (
+    BRIDGE_PROTOCOL_VERSION,
+    SIGNATURE_HEADER,
+    TIMESTAMP_HEADER,
+    VERSION_HEADER,
+    validate_event_payload,
+    verify_bridge_signature,
+)
 
 log = logging.getLogger(__name__)
 
@@ -18,26 +23,19 @@ class BridgeServer:
         self.runner = None
 
     def _verify(self, body: bytes, request: web.Request) -> bool:
-        ts = request.headers.get("X-Bridge-Timestamp", "")
-        sig = request.headers.get("X-Bridge-Signature", "")
-        try:
-            t = int(ts)
-        except ValueError:
-            return False
-        if abs(int(time.time()) - t) > 30:
-            return False
-        expected = hmac.new(
-            self.cfg.bridge_secret.encode(),
-            ts.encode() + b"." + body,
-            hashlib.sha256,
-        ).hexdigest()
-        return hmac.compare_digest(sig, expected)
+        return verify_bridge_signature(
+            self.cfg.bridge_secret,
+            request.headers.get(TIMESTAMP_HEADER, ""),
+            request.headers.get(SIGNATURE_HEADER, ""),
+            body,
+        )
 
     async def health(self, request):
         return web.json_response({
             "ok": True,
             "service": "BYBIT_Demo_AutoTrader_V1.5.4",
             "demo": True,
+            "bridge_protocol": BRIDGE_PROTOCOL_VERSION,
             "smart_position_shadow": bool(self.cfg.smart_position_shadow_enabled),
             "tp2_lock_sl_to_tp1": bool(self.cfg.tp2_lock_sl_to_tp1_enabled),
             "leverage_target": self.cfg.leverage,
@@ -48,19 +46,20 @@ class BridgeServer:
         body = await request.read()
         if not self._verify(body, request):
             return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+
+        requested_version = request.headers.get(VERSION_HEADER, "")
+        if requested_version and requested_version != BRIDGE_PROTOCOL_VERSION:
+            return web.json_response(
+                {"ok": False, "error": "unsupported bridge protocol"},
+                status=400,
+            )
+
         try:
-            payload = json.loads(body.decode())
-            if not isinstance(payload, dict):
-                raise ValueError("request body must be a JSON object")
-            event = str(payload.get("event", "EXECUTE")).upper()
-            if event == "EXECUTE":
+            payload = validate_event_payload(json.loads(body.decode("utf-8")))
+            if payload["event"] == "EXECUTE":
                 result = await self.executor.execute(payload)
-            elif event in {"MANAGEMENT", "PROTECT", "MOVE_SL", "CLOSE", "INVALIDATED", "CLOSE_EARLY"}:
-                if event != "MANAGEMENT" and "action" not in payload:
-                    payload["action"] = event
-                result = await self.executor.management(payload)
             else:
-                return web.json_response({"ok": False, "error": f"unknown event {event}"}, status=400)
+                result = await self.executor.management(payload)
             return web.json_response(result)
         except (json.JSONDecodeError, UnicodeDecodeError):
             return web.json_response({"ok": False, "error": "invalid JSON"}, status=400)

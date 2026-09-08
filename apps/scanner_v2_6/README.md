@@ -28,11 +28,14 @@ Bybit market data
 - Diagnostic shadow analysis that does not mutate core decisions
 - Discord monitoring with the dedicated `/byscan_*` command namespace
 - Safe shared-bot command merge/audit that restores only missing V2.6 commands
-- Optional signed bridge to `apps/autotrader`
+- Optional signed protocol-v1 bridge to `apps/autotrader`
+- Shared deterministic bridge payload/signature contract from `open_crypto_signal_engine.protocol`
 - Replay comparison against the frozen V2.5 baseline
 - Replay handling for currently unavailable/unsupported Bybit symbols
 
 ## Install
+
+Run the component from a **full OpenCryptoSignalEngine repository clone** because the scanner venv installs the shared bridge protocol package from the repository root.
 
 ```bash
 cp .env.example .env
@@ -42,6 +45,8 @@ cp .env.example .env
 ```
 
 For a service installation, review `systemd_service.txt` and then run `./setup_service.sh`.
+
+The network-free release gate includes the scanner-to-AutoTrader bridge contract test. See `docs/bridge-protocol.md` from the repository root for compatibility rules.
 
 ## Security
 

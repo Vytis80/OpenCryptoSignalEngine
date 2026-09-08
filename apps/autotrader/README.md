@@ -1,4 +1,4 @@
-# BYBIT Demo Auto-Trader V1.5.3 — adaptive leverage fallback
+# BYBIT Demo Auto-Trader V1.5.4 — shared risk + bridge contract
 
 Purpose: execute **only** `EXECUTE` signals produced by the already-running Bybit 5m Crypto Scanner. This package does not scan markets and does not generate a second strategy.
 
@@ -28,9 +28,11 @@ Purpose: execute **only** `EXECUTE` signals produced by the already-running Bybi
 - TP1/TP2/TP3 are real reduce-only conditional orders.
 - TP1 full fill moves the verified full-position SL to the actual average entry.
 - TP2 full fill moves the verified full-position SL to TP1. A partial TP2 fill cannot trigger it, and the monotonic guard never permits a stricter SL to be loosened.
+- Automatic TP1/TP2 protection targets are derived from the shared exchange-independent risk lifecycle.
 - TP1/TP2 protection state and retries are stored in SQLite, so a failed update is retried after restart.
 - Source management can move SL or force an invalidation/close.
-- HMAC signed source bridge; also firewall port 8787 to the scanner host IP only.
+- HMAC-signed source bridge uses the shared protocol-v1 transport/validation contract from `open_crypto_signal_engine.protocol`.
+- Existing v1 clients without `X-Bridge-Version` remain accepted; new clients send `X-Bridge-Version: 1`.
 - State-changing Discord commands/buttons are fail-closed and require an explicit `DISCORD_ADMIN_USER_IDS` allow-list. Read-only commands remain available.
 - Management events require both the exact `signal_id` and a durable unique `event_id`; delayed symbol-only events are rejected.
 
@@ -53,6 +55,8 @@ Purpose: execute **only** `EXECUTE` signals produced by the already-running Bybi
 These are execution/risk settings only. The trade direction, entry, SL, TP1, TP2, TP3, quality and setup are taken from the existing signal bot.
 
 ## Install on the host
+
+Use a **full OpenCryptoSignalEngine repository clone** because the AutoTrader venv installs the shared risk/protocol package from the repository root.
 
 ```bash
 sudo apt update
@@ -84,28 +88,23 @@ Health check on the host:
 curl http://127.0.0.1:8787/health
 ```
 
-Expected:
+Expected fields include:
 
 ```json
-{"ok":true,"service":"BYBIT_Demo_AutoTrader_V1.5.3","demo":true,"smart_position_shadow":true,"tp2_lock_sl_to_tp1":true,"leverage_target":10,"leverage_fallback":"instrument_max"}
+{"ok":true,"service":"BYBIT_Demo_AutoTrader_V1.5.4","demo":true,"bridge_protocol":"1","smart_position_shadow":true,"tp2_lock_sl_to_tp1":true,"leverage_target":10,"leverage_fallback":"instrument_max"}
 ```
+
+See `../../docs/bridge-protocol.md` for the signed wire contract and compatibility rules.
 
 ## Firewall
 
-Replace `OLD_BYBIT_VM_IP` with the public IP of the scanner host:
+Allow the bridge port only from the scanner host/network that needs it. Do **not** open port 8787 to the whole internet.
 
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow from OLD_BYBIT_VM_IP to any port 8787 proto tcp
-sudo ufw enable
-sudo ufw status
-```
+## Scanner integration
 
-Do **not** open 8787 to the whole internet.
+The active repository Scanner V2.6 already uses the shared protocol package in `apps/scanner_v2_6/bridge_client.py`.
 
-## Existing scanner integration
-
-See `source_bridge/INTEGRATION.md` and copy `source_bridge/bridge_client.py` to the existing Bybit scanner project. Patch it at the point where that scanner already confirms/sends an `EXECUTE` signal.
+`source_bridge/bridge_client.py` remains a standalone v1 compatibility helper for integrating an external/older scanner that does not install the repository package. See `source_bridge/INTEGRATION.md` before using that path.
 
 ## Discord commands
 
@@ -122,6 +121,4 @@ See `source_bridge/INTEGRATION.md` and copy `source_bridge/bridge_client.py` to 
 
 `/demo_stats` uses actual Bybit demo fills stored locally, so it reports net USDT PnL and R rather than the signal scanner's old `final-leg R` approximation.
 
-Before enabling Discord mutations, set `DISCORD_ADMIN_USER_IDS` to the comma-separated
-numeric Discord user IDs allowed to approve, pause/resume, add margin, close, or use
-the emergency stop. If it is empty, those actions remain disabled by design.
+Before enabling Discord mutations, set `DISCORD_ADMIN_USER_IDS` to the comma-separated numeric Discord user IDs allowed to approve, pause/resume, add margin, close, or use the emergency stop. If it is empty, those actions remain disabled by design.

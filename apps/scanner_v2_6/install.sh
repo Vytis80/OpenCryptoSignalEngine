@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$PROJECT_DIR/../.." && pwd)"
 cd "$PROJECT_DIR"
 
 if ! command -v python3 >/dev/null 2>&1; then
@@ -18,6 +19,14 @@ fi
 
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -r requirements.txt
+
+if [[ ! -f "$ROOT_DIR/pyproject.toml" ]]; then
+  echo "ERROR: repository root not found at $ROOT_DIR" >&2
+  echo "Install Scanner V2.6 from a full OpenCryptoSignalEngine clone." >&2
+  exit 1
+fi
+.venv/bin/python -m pip install -e "$ROOT_DIR"
+
 install -d -m 700 data
 
 if [[ ! -f .env ]]; then

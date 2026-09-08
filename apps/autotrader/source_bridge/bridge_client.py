@@ -1,6 +1,9 @@
-"""Copy this file into the EXISTING Bybit signal scanner VM/project.
+"""Standalone protocol-v1 bridge helper for an external/older Bybit scanner.
 
-It does not change strategy. It only relays already-confirmed events to the Demo Auto-Trader VM.
+The active repository Scanner V2.6 uses ``open_crypto_signal_engine.protocol``
+directly. Keep this copy dependency-light for scanners that do not install the
+full repository package. It does not change strategy; it only relays confirmed
+events to the Demo AutoTrader.
 """
 from __future__ import annotations
 
@@ -21,27 +24,50 @@ class DemoBridgeClient:
     async def send(self, payload: dict):
         body = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode()
         ts = str(int(time.time()))
-        sig = hmac.new(self.secret.encode(), ts.encode() + b"." + body, hashlib.sha256).hexdigest()
+        sig = hmac.new(
+            self.secret.encode(),
+            ts.encode() + b"." + body,
+            hashlib.sha256,
+        ).hexdigest()
         timeout = aiohttp.ClientTimeout(total=self.timeout_sec)
-        async with aiohttp.ClientSession(timeout=timeout) as s:
-            async with s.post(
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
                 self.url,
                 data=body,
                 headers={
                     "Content-Type": "application/json",
                     "X-Bridge-Timestamp": ts,
                     "X-Bridge-Signature": sig,
+                    "X-Bridge-Version": "1",
                 },
-            ) as r:
-                text = await r.text()
-                if r.status >= 300:
-                    raise RuntimeError(f"Demo bridge HTTP {r.status}: {text}")
+            ) as response:
+                text = await response.text()
+                if response.status >= 300:
+                    raise RuntimeError(
+                        f"Demo bridge HTTP {response.status}: {text}"
+                    )
                 return json.loads(text)
 
     async def execute(
-        self, *, signal_id, symbol, side, entry, entry_low, entry_high, sl,
-        tp1, tp2, tp3, quality="", score=0, setup_type="",
-        source_ts=None, expires_at=0, shadow_status="", shadow_note="",
+        self,
+        *,
+        signal_id,
+        symbol,
+        side,
+        entry,
+        entry_low,
+        entry_high,
+        sl,
+        tp1,
+        tp2,
+        tp3,
+        quality="",
+        score=0,
+        setup_type="",
+        source_ts=None,
+        expires_at=0,
+        shadow_status="",
+        shadow_note="",
     ):
         payload = {
             "event": "EXECUTE",
@@ -76,7 +102,7 @@ class DemoBridgeClient:
         price=None,
         new_sl=None,
     ):
-        p = {
+        payload = {
             "event": "MANAGEMENT",
             "event_id": str(event_id),
             "signal_id": str(signal_id),
@@ -85,6 +111,8 @@ class DemoBridgeClient:
             "reason": reason,
             "source_ts": time.time(),
         }
-        if price is not None: p["price"] = float(price)
-        if new_sl is not None: p["new_sl"] = float(new_sl)
-        return await self.send(p)
+        if price is not None:
+            payload["price"] = float(price)
+        if new_sl is not None:
+            payload["new_sl"] = float(new_sl)
+        return await self.send(payload)

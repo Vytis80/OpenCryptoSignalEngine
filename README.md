@@ -30,7 +30,7 @@ Entry / Stop / TP1 / TP2 / TP3
         ↓
 Signal lifecycle + monitoring
         ↓
-Signed bridge
+Signed bridge protocol v1
         ↓
 Bybit Demo AutoTrader
         ↓
@@ -74,6 +74,18 @@ The current project is deliberately **Bybit-only**. The public repository does n
 - durable SQLite state and restart recovery
 - signed bridge and fail-closed Discord mutations
 
+### Shared bridge protocol
+
+- deterministic compact JSON for new bridge clients
+- HMAC-SHA256 authentication over the exact request body
+- 30-second timestamp freshness window
+- explicit protocol v1 header for new clients while retaining old v1 compatibility
+- shared `EXECUTE` and `MANAGEMENT` payload normalization
+- extension fields preserved for scanner research/SMART metadata
+- transport validation kept independent from strategy and exchange execution
+
+See [docs/bridge-protocol.md](docs/bridge-protocol.md).
+
 ### Deterministic replay/backtesting
 
 - normalized OHLCV timestamps and validated candle models
@@ -103,13 +115,14 @@ See [docs/backtesting.md](docs/backtesting.md).
 ├── legacy/
 │   └── scanner_v2_5/       # frozen reference baseline
 ├── src/
-│   └── open_crypto_signal_engine/  # shared risk + backtesting package
+│   └── open_crypto_signal_engine/  # shared risk + backtesting + protocol package
 ├── tests/                  # repository-level deterministic tests
 ├── examples/
 │   └── replay/             # synthetic replay fixture/example
 ├── docs/
 │   ├── architecture.md
 │   ├── backtesting.md
+│   ├── bridge-protocol.md
 │   └── credential-safety.md
 ├── .github/
 │   ├── workflows/
@@ -151,7 +164,7 @@ cp .env.example .env
 ./install.sh
 ```
 
-The AutoTrader is designed for **Bybit Demo Trading**. Its installer expects a full repository clone because the runtime installs and uses the shared risk package. Do not put a production exchange API key into the example configuration or Git history.
+The active Scanner and AutoTrader installers expect a **full repository clone** because both runtimes install shared repository packages. The AutoTrader is designed for **Bybit Demo Trading**. Do not put a production exchange API key into example configuration or Git history.
 
 Synthetic replay example:
 
@@ -190,7 +203,7 @@ ruff check src tests
 ruff format --check src tests
 ```
 
-Component dependencies are intentionally isolated. CI installs and tests V2.6, the Demo AutoTrader plus the shared risk package, and the frozen V2.5 baseline independently.
+Component dependencies are intentionally isolated. CI installs and tests V2.6 plus the shared protocol package, the Demo AutoTrader plus shared repository packages, and the frozen V2.5 baseline independently.
 
 Live connectivity checks are not run in CI because they require user credentials or public-network access. Unit/offline tests must not require real credentials.
 
@@ -208,7 +221,7 @@ The repository is under active development. Current priorities are:
 
 1. keep Scanner V2.6, AutoTrader and the frozen V2.5 baseline covered by deterministic CI;
 2. expand reproducible replay datasets and strategy-level regression coverage without private account data;
-3. formalize additional shared interfaces between scanner, bridge and executor only where they reduce risk rather than add coupling;
+3. evolve shared risk/protocol interfaces only where they reduce duplicated safety logic without coupling strategy to execution;
 4. publish tagged development releases after validation;
 5. keep credential scanning and the V2.5 frozen baseline as permanent safety gates.
 
