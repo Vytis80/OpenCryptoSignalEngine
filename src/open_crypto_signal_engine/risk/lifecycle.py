@@ -100,9 +100,7 @@ def evaluate_lifecycle(
     even if a caller only persisted ``tp2_hit=True`` after recovery.
     """
 
-    if current_stop is not None and (
-        not math.isfinite(current_stop) or current_stop <= 0
-    ):
+    if current_stop is not None and (not math.isfinite(current_stop) or current_stop <= 0):
         raise ValueError("current_stop must be finite and greater than zero")
 
     if progress.invalidated:
