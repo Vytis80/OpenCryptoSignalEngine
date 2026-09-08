@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,8 @@ version = "0.1.0.dev0"
 description = "Open-source multi-timeframe crypto market analysis, signal generation, risk management, backtesting and paper trading framework focused on Bybit."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
   { name = "Vytis80" },
 ]
@@ -25,7 +26,6 @@ classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Developers",
   "Intended Audience :: Financial and Insurance Industry",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -49,6 +49,9 @@ Issues = "https://github.com/Vytis80/OpenCryptoSignalEngine/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+open_crypto_signal_engine = ["py.typed"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"

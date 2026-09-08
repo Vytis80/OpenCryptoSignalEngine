@@ -123,7 +123,8 @@ See [docs/backtesting.md](docs/backtesting.md).
 │   ├── architecture.md
 │   ├── backtesting.md
 │   ├── bridge-protocol.md
-│   └── credential-safety.md
+│   ├── credential-safety.md
+│   └── releasing.md
 ├── .github/
 │   ├── workflows/
 │   └── ISSUE_TEMPLATE/
@@ -207,6 +208,18 @@ Component dependencies are intentionally isolated. CI installs and tests V2.6 pl
 
 Live connectivity checks are not run in CI because they require user credentials or public-network access. Unit/offline tests must not require real credentials.
 
+## Release readiness
+
+Before a development tag is published, CI verifies package/component version consistency, rejects forbidden tracked runtime/secret artifacts, builds both wheel and source distributions, and smoke-installs the wheel in a clean virtual environment.
+
+Run the metadata/artifact gate locally with:
+
+```bash
+python tools/check_release_readiness.py
+```
+
+See [docs/releasing.md](docs/releasing.md) for the complete release checklist and packaging boundary.
+
 ## Risk management
 
 Signal generation, pure risk policy, exchange execution and replay are separate layers. The shared lifecycle defines deterministic protection intent: initial SL, TP1 → breakeven, TP2 → TP1, explicit invalidation, and a monotonic rule that never loosens an already stricter stop.
@@ -222,7 +235,7 @@ The repository is under active development. Current priorities are:
 1. keep Scanner V2.6, AutoTrader and the frozen V2.5 baseline covered by deterministic CI;
 2. expand reproducible replay datasets and strategy-level regression coverage without private account data;
 3. evolve shared risk/protocol interfaces only where they reduce duplicated safety logic without coupling strategy to execution;
-4. publish tagged development releases after validation;
+4. publish tagged development releases only after the reproducible release-readiness gate passes;
 5. keep credential scanning and the V2.5 frozen baseline as permanent safety gates.
 
 See [CHANGELOG.md](CHANGELOG.md) and the open GitHub issues for tracked work.
