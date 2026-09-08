@@ -59,3 +59,17 @@ The project is being built around the following capabilities:
 - WebSocket and REST market data handling
 - Discord alerts and monitoring
 - Modular strategy and execution components
+
+## Risk Management
+
+The framework is designed to support structured and dynamic trade management rather than static entry/exit logic.
+
+Example management flow:
+
+- Initial stop-loss is defined before entry
+- TP1 reached → stop-loss can move to breakeven
+- TP2 reached → stop-loss can move to the TP1 level
+- Further profit protection can be applied as the trade progresses
+- Position sizing can be calculated from predefined account risk
+- Trades can be invalidated when market structure changes
+- Risk logic is kept separate from signal generation and execution
