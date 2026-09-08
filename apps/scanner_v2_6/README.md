@@ -1,6 +1,6 @@
 # Bybit Scanner V2.6 — Signal Core
 
-Current active scanner and signal engine for Bybit USDT Linear Perpetuals.
+Current active scanner and signal engine for Bybit USDT Linear Perpetuals. Current release candidate: `2.6.0-rc2`.
 
 ## Core pipeline
 
@@ -25,10 +25,12 @@ Bybit market data
 - Stop-distance and obstacle-aware execution checks
 - Market-data freshness watchdog and REST fallback
 - Signal lifecycle tracking and cost-adjusted research statistics
-- Diagnostic shadow analysis
-- Discord monitoring and command interface
+- Diagnostic shadow analysis that does not mutate core decisions
+- Discord monitoring with the dedicated `/byscan_*` command namespace
+- Safe shared-bot command merge/audit that restores only missing V2.6 commands
 - Optional signed bridge to `apps/autotrader`
 - Replay comparison against the frozen V2.5 baseline
+- Replay handling for currently unavailable/unsupported Bybit symbols
 
 ## Install
 
@@ -47,4 +49,4 @@ The repository contains no operational credentials. Keep real Discord tokens/web
 
 ## Version
 
-See `VERSION` and `RELEASE_NOTES.md`.
+See `VERSION`, `RELEASE_NOTES.md` and `RC2_UPDATE.md`.
