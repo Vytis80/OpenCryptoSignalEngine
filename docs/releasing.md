@@ -12,20 +12,50 @@ OpenCryptoSignalEngine uses a fail-closed release-readiness gate before developm
 
 GitHub Actions then builds both a wheel and source distribution and installs the wheel into a fresh virtual environment. The clean environment must successfully import the shared risk, protocol and backtesting packages.
 
+## Tag convention
+
+The development release tag is derived directly from the root Python package version:
+
+```text
+package version 0.1.0.dev0 -> Git tag v0.1.0.dev0
+```
+
+The manual release workflow refuses a tag that does not exactly match `v` plus the version in `pyproject.toml`.
+
 ## Release checklist
 
 Before creating a development tag:
 
 1. Confirm Scanner V2.6, Demo AutoTrader and frozen V2.5 `VERSION` files describe the intended snapshot.
 2. Update README and CHANGELOG only when the implementation actually supports the documented behavior.
-3. Run `python tools/check_release_readiness.py`.
-4. Run repository tests and component-specific offline gates.
-5. Confirm the dedicated GitHub secret scan succeeds.
-6. Build with `python -m build` and smoke-install the wheel in a clean virtual environment.
-7. Review the final Git diff for credentials, account data, private infrastructure details and runtime state.
-8. Create a tag/release only from a green `main` commit.
+3. Add release notes at `docs/releases/<tag>.md`.
+4. Run `python tools/check_release_readiness.py`.
+5. Run repository tests and component-specific offline gates.
+6. Confirm the dedicated GitHub secret scan succeeds.
+7. Build with `python -m build` and smoke-install the wheel in a clean virtual environment.
+8. Review the final Git diff for credentials, account data, private infrastructure details and runtime state.
+9. Merge only after the PR CI and secret scan are green.
+10. Confirm the resulting `main` push CI and secret scan are green.
+11. Run the **Publish development release** workflow from the `main` branch and provide the exact expected tag.
 
 A failed metadata, package-build, component-test or secret-scan check blocks the release.
+
+## Manual GitHub release workflow
+
+The repository contains `.github/workflows/release.yml`. It uses `workflow_dispatch`, so publishing remains an explicit maintainer action rather than happening automatically on every merge.
+
+In GitHub:
+
+1. Open **Actions**.
+2. Select **Publish development release**.
+3. Choose **Run workflow**.
+4. Select branch **main**.
+5. Enter the expected tag, for example `v0.1.0.dev0`.
+6. Run the workflow.
+
+The workflow fails if it is launched from a non-main ref, if the requested tag differs from the root package version, if matching release notes are missing, if release readiness fails, or if that tag/release already exists. It rebuilds the wheel and source distribution, smoke-installs the wheel, and then uses the repository-scoped `GITHUB_TOKEN` to create a GitHub **prerelease** and attach both package artifacts.
+
+The release workflow does not use Bybit, Discord, bridge or deployment credentials.
 
 ## What the root Python package contains
 
