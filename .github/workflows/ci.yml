@@ -10,9 +10,11 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  repository:
+    name: Repository / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
@@ -30,11 +32,94 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Lint
-        run: ruff check .
+      - name: Lint shared package
+        run: ruff check src tests
 
-      - name: Format check
-        run: ruff format --check .
+      - name: Format check shared package
+        run: ruff format --check src tests
 
-      - name: Test
-        run: pytest --cov=open_crypto_signal_engine --cov-report=term-missing
+      - name: Test shared package
+        run: pytest -q tests --cov=open_crypto_signal_engine --cov-report=term-missing
+
+      - name: Enforce Bybit-only public scope
+        run: |
+          needle='o''kx'
+          if git grep -n -i -I -e "$needle" -- .; then
+            echo "Public repository scope is Bybit-only; remove the references above."
+            exit 1
+          fi
+
+  scanner-v26:
+    name: Bybit Scanner V2.6 offline gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/scanner_v2_6/requirements.txt
+
+      - name: Install scanner dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r apps/scanner_v2_6/requirements.txt
+
+      - name: Run network-free release gate
+        working-directory: apps/scanner_v2_6
+        run: python tools/run_offline_tests.py
+
+  autotrader:
+    name: Bybit Demo AutoTrader tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/autotrader/requirements.txt
+
+      - name: Install AutoTrader dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r apps/autotrader/requirements.txt pytest pytest-asyncio
+
+      - name: Run AutoTrader tests
+        working-directory: apps/autotrader
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests
+
+  legacy-v25:
+    name: Frozen Bybit Scanner V2.5 regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: legacy/scanner_v2_5/requirements.txt
+
+      - name: Install frozen baseline dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r legacy/scanner_v2_5/requirements.txt pytest pytest-asyncio
+
+      - name: Run frozen baseline self-test
+        working-directory: legacy/scanner_v2_5
+        run: python self_test.py
+
+      - name: Run frozen baseline regression tests
+        working-directory: legacy/scanner_v2_5
+        run: pytest -q -o asyncio_mode=auto

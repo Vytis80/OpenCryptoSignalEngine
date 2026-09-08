@@ -1,0 +1,28 @@
+# Rendered by setup_service.sh into /etc/systemd/system/bybit-crypto-scanner.service
+[Unit]
+Description=Bybit 5m Crypto Scanner V2.6 SIGNAL CORE RC2
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=20
+
+[Service]
+Type=simple
+User=@@USER@@
+Group=@@GROUP@@
+WorkingDirectory=@@PROJECT_DIR@@
+EnvironmentFile=@@PROJECT_DIR@@/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@@PROJECT_DIR@@/.venv/bin/python @@PROJECT_DIR@@/main.py
+Restart=always
+RestartSec=5
+TimeoutStopSec=25
+KillSignal=SIGINT
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
