@@ -88,3 +88,23 @@ Planned and supported research workflows include:
 - Performance statistics
 - Strategy comparison
 - Risk management validation
+
+## Exchange Integration
+
+OpenCryptoSignalEngine is designed to keep exchange-specific code separate from the core analysis and strategy logic.
+
+Initial integration target:
+
+- Bybit
+
+The exchange layer is intended to handle:
+
+- Market data retrieval
+- WebSocket streams
+- REST API fallback
+- Symbol and instrument metadata
+- Paper / demo order execution
+- Position and order state tracking
+- Exchange-specific error handling
+
+This modular approach makes it possible to add additional exchanges without rewriting the core trading logic.
