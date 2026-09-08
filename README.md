@@ -154,3 +154,17 @@ It does not constitute financial or investment advice. Cryptocurrency and deriva
 Users are responsible for evaluating the software, exchange rules, configuration and risk parameters before using any part of the project.
 
 Paper and demo trading are strongly recommended before considering any live trading environment.
+
+## Contributing
+
+Contributions, bug reports and improvement suggestions are welcome.
+
+Before submitting a pull request, please:
+
+- Keep changes focused and clearly documented
+- Avoid committing API keys, tokens or other secrets
+- Add or update tests when changing trading logic
+- Describe the purpose and impact of the change
+- Use paper or demo environments when testing execution-related features
+
+More detailed contribution guidelines will be added as the project develops.
