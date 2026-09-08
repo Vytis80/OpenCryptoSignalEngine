@@ -122,4 +122,4 @@ jobs:
 
       - name: Run frozen baseline regression tests
         working-directory: legacy/scanner_v2_5
-        run: pytest -q
+        run: pytest -q -o asyncio_mode=auto
