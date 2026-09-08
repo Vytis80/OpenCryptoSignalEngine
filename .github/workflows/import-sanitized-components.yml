@@ -121,8 +121,11 @@ jobs:
       - name: Commit imported source and remove transport files
         run: |
           set -euo pipefail
+          # The connected GitHub App cannot push workflow-file changes. Keep the
+          # existing workflows untouched here; they are updated separately after import.
+          git restore -- .github/workflows
+          git clean -f -- .github/workflows
           rm -f .github/import_payload.part-* .github/import_payload.ready
-          rm -f .github/workflows/import-sanitized-components.yml
           find apps legacy -type d -name __pycache__ -prune -exec rm -rf {} +
           find apps legacy -type f -name '*.pyc' -delete
           git config user.name "github-actions[bot]"
