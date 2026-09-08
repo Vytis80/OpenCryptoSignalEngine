@@ -19,12 +19,23 @@ ENV/
 .env
 .env.*
 !.env.example
+.bridge_secret
 *.pem
 *.key
 *.p12
 *.pfx
 secrets/
 credentials/
+
+# Secret/config backups — never commit
+*.backup
+*.backup_*
+*.backup.*
+*.bak
+*.bak_*
+*.bak.*
+backup*/
+*_backup*/
 
 # Logs / runtime state
 *.log
@@ -33,6 +44,7 @@ logs/
 *.sqlite
 *.sqlite3
 *.db
+*.db.*
 state/
 runtime/
 
@@ -44,8 +56,13 @@ orders/
 reports/private/
 data/private/
 data/raw/
+data/*.db*
 backtests/output/
 artifacts/
+
+# Local deployment overrides
+deployment/*.env
+deployment/*.conf
 
 # Packaging / build
 build/
@@ -64,6 +81,5 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-*.bak
 *.swp
 ~*

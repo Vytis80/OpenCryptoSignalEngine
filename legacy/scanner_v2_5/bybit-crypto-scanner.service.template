@@ -1,0 +1,45 @@
+[Unit]
+Description=Bybit 5m Crypto Scanner V2.5 audited
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=@@USER@@
+WorkingDirectory=@@DIR@@
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=@@DIR@@/.venv/bin/python @@DIR@@/main.py
+Restart=on-failure
+RestartSec=5
+WatchdogSec=45
+TimeoutStartSec=120
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+PrivateMounts=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=@@DIR@@/data
+ProtectHostname=true
+ProtectProc=invisible
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectClock=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RemoveIPC=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

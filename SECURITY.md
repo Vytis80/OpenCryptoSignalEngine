@@ -2,33 +2,30 @@
 
 ## Reporting a vulnerability
 
-If you discover a security vulnerability in OpenCryptoSignalEngine, please do not disclose sensitive details publicly in a GitHub issue.
+Please do not disclose sensitive security details, credentials, tokens, private account data or exploitable secrets in a public GitHub issue.
 
-Instead, report the problem privately to the project maintainer.
+Use a private security-reporting channel provided by the repository owner when available. If private reporting is not available, open a minimal issue that does **not** include exploit details or secrets and ask the maintainer for a private contact path.
 
-When reporting a vulnerability, include:
+## Credential policy
 
-- A clear description of the issue
-- Steps to reproduce it
-- Affected component or module
-- Potential impact
-- Suggested mitigation, if known
+The repository must never contain real:
 
-## Sensitive information
+- Bybit API keys or API secrets
+- Discord bot tokens or webhook URLs
+- bridge/HMAC secrets
+- SSH/private keys
+- cloud credentials
+- `.env` files or secret-bearing backup copies
+- account-specific databases, order history or private logs
 
-Never include the following in issues, pull requests, commits or logs:
+Only empty/placeholder `.env.example` files are allowed in Git.
 
-- API keys
-- API secrets
-- Exchange credentials
-- Discord bot tokens
-- Webhook URLs
-- Private account information
-- SSH keys
-- `.env` contents
+If a credential has ever been present in an archive, backup, terminal history, chat, CI log, or Git commit, **rotate it at the provider**. Removing the old text alone is not sufficient.
 
-## Trading and execution safety
+## Execution safety
 
-Execution-related changes should be tested using paper or demo environments before any live deployment.
+Execution-related changes must be tested in paper or Bybit Demo environments before any live deployment. Changes affecting authentication, order placement, protective stops, leverage, margin handling, bridge verification or position reconciliation deserve additional review.
 
-Security fixes that affect authentication, exchange connectivity, order execution or credential handling should receive additional review before release.
+## Automated checks
+
+Pull requests and pushes run CI plus a secret-scanning workflow. These checks reduce risk but do not replace human review.
