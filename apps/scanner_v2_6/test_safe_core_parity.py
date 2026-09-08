@@ -1,24 +1,40 @@
-
 import ast
 import hashlib
-import inspect
-from config import Config
-from strategy import analyze_v25
+from pathlib import Path
 
-# V2.6 intentionally replaces the production core, but the exact V2.5
-# baseline remains frozen in the same module for replay/A-B comparison.
-node=ast.parse(inspect.getsource(analyze_v25)).body[0]
-node.name='analyze'
-baseline_hash=hashlib.sha256(ast.dump(node,include_attributes=False).encode()).hexdigest()
-EXPECTED='1458d94812ff37f2ee1b6279553c15f26bda57f29ae959c792174b4c2198a11b'
-assert baseline_hash==EXPECTED, f'frozen V2.5 comparison core changed: {baseline_hash}'
-c=Config()
-assert c.execute_score==82
-assert c.potential_score==70
-assert c.min_rr_tp2==1.8
-assert c.volume_ratio_trigger==1.15
-assert c.max_spread_pct==0.20
-assert c.max_chase_atr==1.30
-assert c.signal_cooldown_sec==1800
-assert c.same_candle_cooldown_sec==600
-print('OK: frozen V2.5 baseline is intact; common thresholds remain explicit')
+from config import Config
+
+
+ROOT = Path(__file__).resolve().parents[2]
+CURRENT_STRATEGY = Path(__file__).resolve().parent / "strategy.py"
+LEGACY_STRATEGY = ROOT / "legacy" / "scanner_v2_5" / "strategy.py"
+
+
+def function_hash(path: Path, function_name: str) -> str:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
+            node.name = "analyze"
+            payload = ast.dump(node, include_attributes=False).encode()
+            return hashlib.sha256(payload).hexdigest()
+    raise AssertionError(f"{function_name!r} not found in {path}")
+
+
+current_hash = function_hash(CURRENT_STRATEGY, "analyze_v25")
+legacy_hash = function_hash(LEGACY_STRATEGY, "analyze")
+assert current_hash == legacy_hash, (
+    "frozen V2.5 comparison core diverged from the public V2.5 baseline: "
+    f"current={current_hash}, legacy={legacy_hash}"
+)
+
+c = Config()
+assert c.execute_score == 82
+assert c.potential_score == 70
+assert c.min_rr_tp2 == 1.8
+assert c.volume_ratio_trigger == 1.15
+assert c.max_spread_pct == 0.20
+assert c.max_chase_atr == 1.30
+assert c.signal_cooldown_sec == 1800
+assert c.same_candle_cooldown_sec == 600
+
+print("OK: frozen V2.5 comparison core matches the public baseline")
