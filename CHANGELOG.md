@@ -9,6 +9,7 @@ All notable repository-level changes are documented here.
 - Bybit Scanner V2.6 (`2.6.0-rc2`) as the active scanner and signal core
 - Bybit Demo AutoTrader (`1.5.3`) as the active demo-execution component
 - Bybit Scanner V2.5.1 as a frozen regression/replay baseline
+- exchange-independent dynamic risk lifecycle with deterministic LONG/SHORT tests
 - component-specific example environment files containing placeholders only
 - component test coverage in GitHub Actions
 - dedicated credential-safety documentation
@@ -26,6 +27,7 @@ All notable repository-level changes are documented here.
 
 - root README now documents the actual V2.6 / AutoTrader / V2.5 component model
 - CI isolates repository-level linting from preserved component source style and runs component tests separately
+- risk milestone intent is formalized independently from exchange order execution
 
 ## [0.1.0-dev] - 2026-09-08
 
