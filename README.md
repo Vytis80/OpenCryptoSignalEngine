@@ -73,3 +73,18 @@ Example management flow:
 - Position sizing can be calculated from predefined account risk
 - Trades can be invalidated when market structure changes
 - Risk logic is kept separate from signal generation and execution
+
+## Backtesting & Paper Trading
+
+The framework is intended to support strategy validation before live deployment.
+
+Planned and supported research workflows include:
+
+- Historical strategy backtesting
+- Signal replay and validation
+- Paper trading without real capital
+- Demo exchange execution
+- Trade outcome tracking
+- Performance statistics
+- Strategy comparison
+- Risk management validation
