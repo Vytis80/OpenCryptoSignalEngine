@@ -45,11 +45,33 @@ The scanner-to-AutoTrader bridge is optional and uses a shared HMAC secret. The 
 
 The downstream executor should reject malformed, stale, duplicated, or unauthenticated events.
 
+## Risk lifecycle boundary
+
+`src/open_crypto_signal_engine/risk/lifecycle.py` defines the deterministic protection state machine without importing Bybit, Discord, storage, or network code. A validated risk plan must contain the entry, initial stop and ordered TP1/TP2/TP3 levels before execution begins.
+
+The shared lifecycle has four explicit states:
+
+```text
+INITIAL
+  │ TP1 confirmed
+  ▼
+BREAKEVEN          desired SL = actual entry
+  │ TP2 confirmed
+  ▼
+TP1_LOCKED         desired SL = TP1
+
+Any state ── explicit invalidation ──▶ INVALIDATED / close required
+```
+
+The evaluator is monotonic: if a caller already has a stricter stop than the milestone target, that stop is preserved rather than loosened. LONG and SHORT behavior is symmetric and covered by deterministic unit tests.
+
+This module describes **what protection is required**. Exchange adapters and executors remain responsible for price quantization, order submission, fill verification, retries, persistence, and proving that the requested stop actually exists on the exchange.
+
 ## Execution boundary
 
 The AutoTrader is intended for Bybit Demo Trading. It owns order placement, position reconciliation, TP fill tracking, stop protection, margin-safety checks, and durable execution state.
 
-The scanner owns signal intent; the executor owns safe interaction with the demo exchange.
+The scanner owns signal intent; the executor owns safe interaction with the demo exchange. The shared risk lifecycle is deliberately exchange-independent so its state transitions can be tested without credentials or network access.
 
 ## Versioning boundary
 
