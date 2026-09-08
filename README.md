@@ -123,3 +123,24 @@ Discord notifications can be used for:
 - Bot health and status messages
 - Errors and connection issues
 - Performance and statistics reports
+
+## Project Status
+
+OpenCryptoSignalEngine is under active development.
+
+The current focus is on building and validating the core Bybit trading research and execution pipeline.
+
+## Roadmap
+
+Planned development areas include:
+
+- Improve multi-timeframe signal quality
+- Expand market structure analysis
+- Refine dynamic stop-loss and take-profit management
+- Improve risk-based position sizing
+- Extend historical backtesting capabilities
+- Improve paper and demo execution tracking
+- Add more detailed performance statistics
+- Improve Discord monitoring and bot health reporting
+- Expand automated testing and validation
+- Improve documentation and examples
