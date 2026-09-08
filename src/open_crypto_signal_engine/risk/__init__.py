@@ -6,6 +6,7 @@ from .lifecycle import (
     RiskDecision,
     RiskPlan,
     evaluate_lifecycle,
+    evaluate_post_tp_protection,
     is_stricter_stop,
 )
 
@@ -15,5 +16,6 @@ __all__ = [
     "RiskDecision",
     "RiskPlan",
     "evaluate_lifecycle",
+    "evaluate_post_tp_protection",
     "is_stricter_stop",
 ]
