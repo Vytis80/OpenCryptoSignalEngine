@@ -104,7 +104,4 @@ def summarize_by_setup(results: Iterable[ReplayResult]) -> dict[str, Performance
     groups: dict[str, list[ReplayResult]] = defaultdict(list)
     for result in results:
         groups[result.setup_type].append(result)
-    return {
-        setup_type: summarize_results(groups[setup_type])
-        for setup_type in sorted(groups)
-    }
+    return {setup_type: summarize_results(groups[setup_type]) for setup_type in sorted(groups)}
