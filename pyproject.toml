@@ -50,6 +50,9 @@ Issues = "https://github.com/Vytis80/OpenCryptoSignalEngine/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+open_crypto_signal_engine = ["py.typed"]
+
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
 testpaths = ["tests"]
