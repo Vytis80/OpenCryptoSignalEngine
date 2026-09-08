@@ -21,3 +21,24 @@ OpenCryptoSignalEngine is designed around a modular trading research pipeline:
 - Paper and demo trading
 - Exchange integrations
 - Discord-based monitoring and notifications
+
+## Architecture
+
+The framework is designed as a modular pipeline:
+
+```text
+Market Data
+    ↓
+Multi-Timeframe Analysis
+    ↓
+Market Structure Evaluation
+    ↓
+Signal Generation
+    ↓
+Risk & Trade Management
+    ↓
+Paper / Demo Execution
+    ↓
+Backtesting & Performance Analysis
+    ↓
+Discord Monitoring
