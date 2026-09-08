@@ -245,9 +245,9 @@ def build_execute_payload(
     if extra:
         overlap = set(payload).intersection(extra)
         if overlap:
+            reserved_keys = sorted(overlap)
             raise ValueError(
-                "extra EXECUTE fields cannot override reserved keys: "
-                f"{sorted(overlap)}"
+                f"extra EXECUTE fields cannot override reserved keys: {reserved_keys}"
             )
         payload.update(dict(extra))
     return payload
