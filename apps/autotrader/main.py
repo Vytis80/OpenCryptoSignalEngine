@@ -62,8 +62,8 @@ async def amain():
     if int(os.getenv("WATCHDOG_USEC", "0") or 0) > 0:
         tasks.append(asyncio.create_task(watchdog_loop(), name="systemd-watchdog"))
 
-    log.info("BYBIT Demo Auto-Trader V1.5.3 READY · auto=%s · execution_mode=%s · smart_position_shadow=%s · tp2_lock_sl_to_tp1=%s · risk_target=%.2f%% · leverage_target=%sx · leverage_fallback=instrument_max · min_margin=%.2f USDT · max_positions=%s", await executor.enabled(), cfg.execution_mode, cfg.smart_position_shadow_enabled, cfg.tp2_lock_sl_to_tp1_enabled, cfg.risk_pct, cfg.leverage, cfg.min_margin_usdt, cfg.max_open_positions)
-    systemd_notify(f"READY=1\nSTATUS=Bybit Demo Auto-Trader V1.5.3 ready ({cfg.execution_mode}, leverage <= {cfg.leverage}x, TP2->TP1, max {cfg.max_open_positions})")
+    log.info("BYBIT Demo Auto-Trader V1.5.4 READY · auto=%s · execution_mode=%s · smart_position_shadow=%s · tp2_lock_sl_to_tp1=%s · risk_target=%.2f%% · leverage_target=%sx · leverage_fallback=instrument_max · min_margin=%.2f USDT · max_positions=%s", await executor.enabled(), cfg.execution_mode, cfg.smart_position_shadow_enabled, cfg.tp2_lock_sl_to_tp1_enabled, cfg.risk_pct, cfg.leverage, cfg.min_margin_usdt, cfg.max_open_positions)
+    systemd_notify(f"READY=1\nSTATUS=Bybit Demo Auto-Trader V1.5.4 ready ({cfg.execution_mode}, leverage <= {cfg.leverage}x, TP2->TP1, max {cfg.max_open_positions})")
     stop_task = asyncio.create_task(stop.wait(), name="shutdown-signal")
     try:
         done, _ = await asyncio.wait(
