@@ -108,3 +108,18 @@ The exchange layer is intended to handle:
 - Exchange-specific error handling
 
 This modular approach makes it possible to add additional exchanges without rewriting the core trading logic.
+
+## Discord Monitoring & Notifications
+
+OpenCryptoSignalEngine includes Discord-based monitoring and alerting for the trading workflow.
+
+Discord notifications can be used for:
+
+- Signal alerts
+- Setup state changes
+- Trade entry notifications
+- Stop-loss and take-profit updates
+- Paper / demo trade results
+- Bot health and status messages
+- Errors and connection issues
+- Performance and statistics reports
