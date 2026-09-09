@@ -33,11 +33,22 @@
 - Replay validation skips symbols that are no longer valid/available in the current Bybit instrument universe instead of treating those markets as strategy failures.
 - Runtime version reporting is aligned to `2.6.0-rc2`.
 
+## 2026-09-09 AI research sidecar sync
+
+- Optional `openai/gpt-oss-120b` AI Judge support was synced from the LIVE scanner through a Groq-compatible endpoint.
+- AI Judge is disabled by default in public configuration and requires a user-owned local provider credential when enabled.
+- The sidecar is EXECUTE-only and observational: verdicts never change the scanner decision, Entry, SL, TP, size or management.
+- The confirmed signal is persisted and the optional Demo AutoTrader bridge task is queued before awaiting AI, preventing provider latency/failure from becoming an execution gate.
+- AI judgement/latency research is stored separately in SQLite and can be inspected through `/byscan_ai_last` and `/byscan_ai_stats`.
+- Public CI uses network-free contract, persistence and non-blocking checks; live provider calls are intentionally excluded.
+
+See `AI_JUDGE_V1.md` for the external-provider/privacy boundary.
+
 ## Release gate
 
-- 22 offline tests.
+- Component offline tests plus credential-free AI sidecar checks.
 - Python compile checks.
 - Shell syntax checks where applicable.
 - V2.6 strategy hash, frozen V2.5 baseline integrity checks and secret scanning.
-- Public Bybit live preflight is intentionally executed only on the deployment host; public CI remains network-free and credential-free.
+- Public Bybit/live-AI preflight is intentionally executed only on deployment hosts; public CI remains credential-free.
 - Promotion remains fail-closed until replay validation returns PASS with a sufficient sample.
