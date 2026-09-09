@@ -24,7 +24,7 @@ jobs:
           python-version: '3.11'
 
       - name: Apply fail-closed AI sidecar patch
-        run: python .github/ai_live_patch.py
+        run: python .github/ai_live_patch_fix.py
 
       - name: Compile changed Python
         run: |
@@ -72,8 +72,8 @@ jobs:
           print('secret/runtime guard: OK')
           PY
 
-      - name: Remove one-shot patcher before commit
-        run: rm -f .github/ai_live_patch.py
+      - name: Remove one-shot patchers before commit
+        run: rm -f .github/ai_live_patch.py .github/ai_live_patch_fix.py
 
       - name: Commit integrated code
         run: |
