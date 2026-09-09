@@ -465,6 +465,37 @@ class TradeDiscord(discord.Client):
                 "_Cost-adjusted values are analytics only and never change EXECUTE, Entry, SL, TP or management._",
                 ephemeral=True)
 
+        @self.tree.command(name="byscan_ai_last",description="Show the latest AI Judge verdicts")
+        async def ai_last(i):
+            if not await self.defer(i):return
+            rows=await self.s.storage.ai_recent(5)
+            if not rows:
+                await i.followup.send("No AI Judge sample yet. New EXECUTE signals will collect it when AI is enabled.",ephemeral=True);return
+            lines=["🤖 **AI JUDGE — LATEST** · shadow only"]
+            for r in rows:
+                if r['status']!='OK':
+                    lines.append(f"• **{r['inst_id']} {r['side']}** · ⚪ AI unavailable · `{(r.get('error') or '')[:100]}`");continue
+                outcome=r.get('close_reason') or r.get('signal_status');icon='✅' if r['verdict']=='APPROVE' else '⛔'
+                lines.append(f"• **{r['inst_id']} {r['side']}** · {icon} **{r['verdict']} {r['confidence']}/100** · AI {r['setup_quality']} / {r['risk']} · outcome **{outcome}**\n  _{(r.get('summary') or '')[:260]}_")
+            await self.send_long(i,"\n".join(lines))
+
+        @self.tree.command(name="byscan_ai_stats",description="Compare AI APPROVE/REJECT with real signal outcomes")
+        @app_commands.describe(days="1–30")
+        async def ai_stats(i,days:app_commands.Range[int,1,30]=7):
+            if not await self.defer(i):return
+            rows=await self.s.storage.ai_stats(time.time()-days*86400)
+            if not rows:
+                await i.followup.send("No AI Judge sample yet. It starts on new EXECUTE signals when AI is enabled.",ephemeral=True);return
+            lines=[f"🤖 **AI JUDGE STATS {days}d** · shadow only"]
+            for r in rows:
+                n=r['n'] or 1
+                if r['status']!='OK':
+                    lines.append(f"• ⚪ **AI ERROR/NO DATA** n={n} · avg latency `{(r.get('avg_latency_ms') or 0):.0f} ms`");continue
+                closed=r.get('closed_n') or 0;verdict=r.get('verdict') or 'NO_DATA';icon='✅' if verdict=='APPROVE' else '⛔'
+                lines.append(f"• {icon} **{verdict}** n={n} / closed={closed} · avg confidence `{(r.get('avg_confidence') or 0):.0f}` · TP1 `{(r.get('tp1') or 0)/n*100:.0f}%` · TP2 `{(r.get('tp2') or 0)/n*100:.0f}%` · TP3 `{(r.get('tp3') or 0)/n*100:.0f}%` · Full SL `{(r.get('full_sl') or 0)/closed*100 if closed else 0:.0f}% of closed` · MFE `{(r.get('avg_mfe_r') or 0):.2f}R` · MAE `{(r.get('avg_mae_r') or 0):.2f}R` · latency `{(r.get('avg_latency_ms') or 0):.0f} ms`")
+            lines.append("\nAI is observational only. Treat APPROVE/REJECT separation as research, not a trading guarantee.")
+            await self.send_long(i,"\n".join(lines))
+
         @self.tree.command(name="byscan_shadow_stats",description="Compare anti-SL SHADOW decisions with real outcomes")
         @app_commands.describe(days="1–30")
         async def shadow_stats(i,days:app_commands.Range[int,1,30]=7):
@@ -553,6 +584,7 @@ class TradeDiscord(discord.Client):
                 "`/byscan_potentials` `/byscan_hotlist` `/byscan_bias` `/byscan_active`\n"
                 "`/byscan_recent` `/byscan_performance` `/byscan_stats` `/byscan_edge_stats`\n"
                 "`/byscan_setup_stats` `/byscan_shadow_stats`\n"
+                "`/byscan_ai_last` `/byscan_ai_stats`\n"
                 "`/byscan_sources` `/byscan_risk` `/byscan_version`\n\n"
                 "Commands use the `byscan_` prefix so they cannot be confused with Pump Hunter or Radar commands.",
                 ephemeral=True)

@@ -66,6 +66,16 @@ class Storage:
             );
             CREATE INDEX IF NOT EXISTS idx_smart_signal_verdict
               ON smart_signal_checks(verdict,checked_at);
+            CREATE TABLE IF NOT EXISTS ai_judgements(
+              signal_id INTEGER PRIMARY KEY, inst_id TEXT NOT NULL, checked_at REAL NOT NULL,
+              provider TEXT NOT NULL, model TEXT NOT NULL, status TEXT NOT NULL,
+              verdict TEXT, confidence INTEGER, setup_quality TEXT, risk TEXT,
+              summary TEXT, strengths TEXT, risks TEXT, latency_ms INTEGER DEFAULT 0,
+              prompt_tokens INTEGER DEFAULT 0, completion_tokens INTEGER DEFAULT 0,
+              total_tokens INTEGER DEFAULT 0, error TEXT, prompt_version TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_ai_judgements_time ON ai_judgements(checked_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_judgements_verdict ON ai_judgements(verdict);
             CREATE TABLE IF NOT EXISTS smart_management_checks(
               signal_id INTEGER NOT NULL, inst_id TEXT NOT NULL,
               candle_ts INTEGER NOT NULL, checked_at REAL NOT NULL,
@@ -100,6 +110,15 @@ class Storage:
             for name,sql_type in migrations.items():
                 if name not in cols:
                     await db.execute(f"ALTER TABLE signals ADD COLUMN {name} {sql_type}")
+            ai_cols={r[1] for r in await (await db.execute("PRAGMA table_info(ai_judgements)")).fetchall()}
+            ai_migrations={
+              "prompt_tokens":"INTEGER DEFAULT 0",
+              "completion_tokens":"INTEGER DEFAULT 0",
+              "total_tokens":"INTEGER DEFAULT 0",
+            }
+            for name,sql_type in ai_migrations.items():
+                if name not in ai_cols:
+                    await db.execute(f"ALTER TABLE ai_judgements ADD COLUMN {name} {sql_type}")
             shadow_cols={r[1] for r in await (await db.execute("PRAGMA table_info(shadow_checks)")).fetchall()}
             if "estimated_cost_r" not in shadow_cols:
                 await db.execute("ALTER TABLE shadow_checks ADD COLUMN estimated_cost_r REAL DEFAULT 0")
@@ -186,6 +205,61 @@ class Storage:
             db.row_factory=aiosqlite.Row
             c=await db.execute("SELECT * FROM smart_signal_checks WHERE signal_id=?",(sid,))
             r=await c.fetchone();return dict(r) if r else None
+
+    async def save_ai_judgement(self,sid,j):
+        async with self._connect() as db:
+            await db.execute("""INSERT INTO ai_judgements(
+              signal_id,inst_id,checked_at,provider,model,status,verdict,confidence,setup_quality,risk,
+              summary,strengths,risks,latency_ms,prompt_tokens,completion_tokens,total_tokens,error,prompt_version
+              ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+              ON CONFLICT(signal_id) DO UPDATE SET checked_at=excluded.checked_at,provider=excluded.provider,
+                model=excluded.model,status=excluded.status,verdict=excluded.verdict,confidence=excluded.confidence,
+                setup_quality=excluded.setup_quality,risk=excluded.risk,summary=excluded.summary,
+                strengths=excluded.strengths,risks=excluded.risks,latency_ms=excluded.latency_ms,
+                prompt_tokens=excluded.prompt_tokens,completion_tokens=excluded.completion_tokens,
+                total_tokens=excluded.total_tokens,error=excluded.error,prompt_version=excluded.prompt_version""",
+              (sid,j.inst_id,j.checked_at,j.provider,j.model,j.status,j.verdict,j.confidence,j.setup_quality,j.risk,
+               j.summary,json.dumps(j.strengths,ensure_ascii=False),json.dumps(j.risks,ensure_ascii=False),
+               j.latency_ms,j.prompt_tokens,j.completion_tokens,j.total_tokens,j.error,j.prompt_version))
+            await db.commit()
+
+    async def ai_recent(self,limit=5):
+        async with self._connect() as db:
+            db.row_factory=aiosqlite.Row
+            c=await db.execute("""SELECT j.*,s.side,s.quality scanner_quality,s.score scanner_score,
+              s.status signal_status,s.close_reason,s.tp1_hit,s.tp2_hit,s.tp3_hit,s.max_gain_pct,s.max_drawdown_pct
+              FROM ai_judgements j JOIN signals s ON s.id=j.signal_id
+              ORDER BY j.checked_at DESC LIMIT ?""",(limit,))
+            return [dict(x) for x in await c.fetchall()]
+
+    async def ai_stats(self,since):
+        async with self._connect() as db:
+            db.row_factory=aiosqlite.Row
+            c=await db.execute("""SELECT j.status,j.verdict,COUNT(*) n,
+              SUM(s.status='CLOSED') closed_n,SUM(s.close_reason='SL') sl,
+              SUM(s.close_reason='SL' AND s.tp1_hit=0) full_sl,
+              SUM(s.tp1_hit=1) tp1,SUM(s.tp2_hit=1) tp2,SUM(s.tp3_hit=1) tp3,
+              AVG(j.confidence) avg_confidence,AVG(j.latency_ms) avg_latency_ms,
+              SUM(j.prompt_tokens) prompt_tokens,SUM(j.completion_tokens) completion_tokens,SUM(j.total_tokens) total_tokens,
+              AVG(CASE WHEN s.entry>0 AND ABS(s.entry-s.sl)>0 THEN s.max_gain_pct/(ABS(s.entry-s.sl)/s.entry*100.0) END) avg_mfe_r,
+              AVG(CASE WHEN s.entry>0 AND ABS(s.entry-s.sl)>0 THEN ABS(s.max_drawdown_pct)/(ABS(s.entry-s.sl)/s.entry*100.0) END) avg_mae_r
+              FROM ai_judgements j JOIN signals s ON s.id=j.signal_id
+              WHERE s.confirmed_at>=? GROUP BY j.status,j.verdict ORDER BY j.status,j.verdict""",(since,))
+            return [dict(x) for x in await c.fetchall()]
+
+    async def ai_usage(self,since):
+        async with self._connect() as db:
+            db.row_factory=aiosqlite.Row
+            c=await db.execute("""SELECT COUNT(*) requests,
+              SUM(CASE WHEN status='OK' THEN 1 ELSE 0 END) ok_requests,
+              SUM(CASE WHEN status!='OK' THEN 1 ELSE 0 END) failed_requests,
+              COALESCE(SUM(prompt_tokens),0) prompt_tokens,
+              COALESCE(SUM(completion_tokens),0) completion_tokens,
+              COALESCE(SUM(total_tokens),0) total_tokens,
+              AVG(CASE WHEN total_tokens>0 THEN total_tokens END) avg_total_tokens,
+              AVG(latency_ms) avg_latency_ms
+              FROM ai_judgements WHERE checked_at>=?""",(since,))
+            r=await c.fetchone();return dict(r) if r else {}
 
     async def save_smart_management(self,assessment):
         values=(assessment.signal_id,assessment.inst_id,assessment.candle_ts,
