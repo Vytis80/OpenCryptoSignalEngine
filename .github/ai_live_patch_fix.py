@@ -4,14 +4,12 @@ from pathlib import Path
 p=Path('.github/ai_live_patch.py')
 s=p.read_text()
 
-# 1) Make the V2.5 storage migration anchor unique.
 old='insert_before(V25/"storage.py", "            await db.commit()\\n", \'\'\''
 new='insert_before(V25/"storage.py", "            shadow_cols={r[1] for r in await (await db.execute(\\"PRAGMA table_info(shadow_checks)\\")).fetchall()}\\n", \'\'\''
 if old not in s:
     raise SystemExit('expected V2.5 storage migration anchor not found in patcher')
 s=s.replace(old,new,1)
 
-# 2) Preserve escaped newlines inside generated Python triple-quoted blocks.
 def escape_block_after(src,prefix,start,end):
     base=src.find(prefix)
     if base<0:
@@ -28,7 +26,7 @@ def escape_block_after(src,prefix,start,end):
 
 s=escape_block_after(s,'p = V26 / "alerts.py"','insert_before(p, "    if blocks:\\n", \'\'\'','\'\'\')\n\np = V25 / "alerts.py"')
 s=escape_block_after(s,'p = V25 / "alerts.py"','insert_before(p, "    if blocks:\\n", \'\'\'','\'\'\')\n\n# Storage schemas')
-s=escape_block_after(s,"V26_COMMANDS='''","V26_COMMANDS='''","'''\ninsert_before(V26/\"discord_control.py\"")
-s=escape_block_after(s,"V25_COMMANDS='''","V25_COMMANDS='''","'''\ninsert_before(V25/\"discord_control.py\"")
+s=escape_block_after(s,'# Discord inspection commands.\n',"V26_COMMANDS='''","'''\ninsert_before(V26/\"discord_control.py\"")
+s=escape_block_after(s,'insert_before(V26/"discord_control.py"',"V25_COMMANDS='''","'''\ninsert_before(V25/\"discord_control.py\"")
 
 exec(compile(s,str(p),'exec'),{'__name__':'__main__'})
