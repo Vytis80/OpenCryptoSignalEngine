@@ -13,9 +13,9 @@ Open-source Bybit-focused crypto market analysis, signal generation, risk manage
 | --- | --- | --- | --- |
 | [Bybit Scanner V2.6](apps/scanner_v2_6/) | `2.6.0-rc2` | **Active** | Current multi-timeframe signal core and scanner |
 | [Bybit Demo AutoTrader](apps/autotrader/) | `1.5.4` | **Active / Demo only** | Executes scanner `EXECUTE` events in Bybit Demo Trading |
-| [Bybit Scanner V2.5](legacy/scanner_v2_5/) | `2.5.1` | **Frozen reference** | Preserved baseline for regression comparison and replay |
+| [Bybit Scanner V2.5](legacy/scanner_v2_5/) | `2.5.1` | **Frozen reference** | Preserved strategy baseline for regression comparison and replay |
 
-V2.5 is intentionally retained as a frozen reference rather than silently overwritten by V2.6. This makes strategy evolution and replay comparisons auditable.
+V2.5 is intentionally retained as a frozen strategy reference rather than silently overwritten by V2.6. Observation-only research sidecars may be measured against it, but must not change the preserved signal behavior.
 
 ## What the system does
 
@@ -28,7 +28,8 @@ Signal quality + execution gates
         ↓
 Entry / Stop / TP1 / TP2 / TP3
         ↓
-Signal lifecycle + monitoring
+Confirmed EXECUTE persistence
+        ├──────────────→ optional GPT-OSS AI Judge (shadow research only)
         ↓
 Signed bridge protocol v1
         ↓
@@ -39,7 +40,7 @@ Shared TP protection lifecycle
 TP fills + dynamic stop protection + statistics
 ```
 
-The current project is deliberately **Bybit-only**. The public repository does not contain exchange-account credentials, Discord credentials, cloud/server details, or private runtime databases.
+The current project is deliberately **Bybit-only**. The public repository does not contain exchange-account credentials, Discord credentials, Groq credentials, cloud/server details, or private runtime databases.
 
 ## Highlights
 
@@ -56,6 +57,21 @@ The current project is deliberately **Bybit-only**. The public repository does n
 - signal lifecycle, replay comparison and edge statistics
 - Discord monitoring
 - optional signed bridge to the Demo AutoTrader
+- optional EXECUTE-only GPT-OSS 120B AI Judge as a non-blocking research sidecar
+
+### Optional GPT-OSS AI Judge
+
+- uses `openai/gpt-oss-120b` through a Groq-compatible API by default when explicitly enabled
+- disabled by default in committed example configuration
+- runs only after the scanner has already confirmed and persisted an `EXECUTE`
+- V2.6 queues the optional AutoTrader bridge before awaiting the AI provider
+- AI verdicts cannot veto the signal or change Entry, SL, TP levels, size or management
+- V2.6 stores verdict/latency research and exposes `/byscan_ai_last` plus `/byscan_ai_stats`
+- frozen V2.5 uses the same observation-only boundary while keeping its strategy unchanged
+- V2.5 stores separate AI research and prompt/completion/total-token usage, exposed through `/bybit_ai_last`, `/bybit_ai_stats` and `/bybit_ai_usage`
+- live provider probes are intentionally excluded from public CI; offline contract, persistence, migration and non-blocking checks are used instead
+
+Enabling the AI sidecar sends structured setup/signal evidence to the configured external provider. Provider credentials and runtime AI responses belong only in local ignored configuration/state. See [apps/scanner_v2_6/AI_JUDGE_V1.md](apps/scanner_v2_6/AI_JUDGE_V1.md) and [legacy/scanner_v2_5/AI_JUDGE_V25.md](legacy/scanner_v2_5/AI_JUDGE_V25.md).
 
 ### Demo AutoTrader
 
@@ -101,19 +117,20 @@ See [docs/backtesting.md](docs/backtesting.md).
 
 ### Frozen V2.5 baseline
 
-- preserved signal behavior for regression comparison
-- observation-only SMART / shadow research layers
+- preserved strategy behavior for regression comparison
+- observation-only SMART / anti-SL shadow / GPT-OSS AI research layers
 - separate baseline for replay against V2.6
+- AI usage and outcomes stored independently from V2.6 research
 
 ## Repository layout
 
 ```text
 .
 ├── apps/
-│   ├── scanner_v2_6/       # active scanner / signal core
+│   ├── scanner_v2_6/       # active scanner / signal core + optional AI sidecar
 │   └── autotrader/         # active Bybit Demo executor
 ├── legacy/
-│   └── scanner_v2_5/       # frozen reference baseline
+│   └── scanner_v2_5/       # frozen strategy reference + observation-only research
 ├── src/
 │   └── open_crypto_signal_engine/  # shared risk + backtesting + protocol package
 ├── tests/                  # repository-level deterministic tests
@@ -152,6 +169,7 @@ Scanner V2.6:
 cd apps/scanner_v2_6
 cp .env.example .env
 # Fill only your own local Discord / optional bridge values.
+# AI Judge stays disabled unless you explicitly enable it and add your own GROQ_API_KEY.
 ./install.sh
 .venv/bin/python self_test.py
 ```
@@ -181,11 +199,12 @@ Operational secrets are intentionally excluded from the public source import. In
 
 - Bybit API keys or API secrets
 - Discord bot tokens or webhook URLs
+- Groq/API-provider credentials
 - bridge/HMAC secrets
 - `.env` runtime files or backup copies
 - SSH/private keys
 - cloud/server credentials or private infrastructure paths
-- account-specific SQLite databases, order history, logs or runtime state
+- account-specific SQLite databases, AI response databases, order history, logs or runtime state
 
 Only placeholder `.env.example` files are committed. The repository `.gitignore` blocks common secret/backup artifacts and GitHub Actions runs a dedicated secret scan on pushes and pull requests.
 
@@ -206,7 +225,7 @@ ruff format --check src tests
 
 Component dependencies are intentionally isolated. CI installs and tests V2.6 plus the shared protocol package, the Demo AutoTrader plus shared repository packages, and the frozen V2.5 baseline independently.
 
-Live connectivity checks are not run in CI because they require user credentials or public-network access. Unit/offline tests must not require real credentials.
+Live connectivity and live AI-provider checks are not run in CI because they require user credentials or public-network access. Unit/offline tests must not require real credentials.
 
 ## Release readiness
 
@@ -222,9 +241,9 @@ See [docs/releasing.md](docs/releasing.md) for the complete release checklist an
 
 ## Risk management
 
-Signal generation, pure risk policy, exchange execution and replay are separate layers. The shared lifecycle defines deterministic protection intent: initial SL, TP1 → breakeven, TP2 → TP1, explicit invalidation, and a monotonic rule that never loosens an already stricter stop.
+Signal generation, AI research, pure risk policy, exchange execution and replay are separate layers. The shared lifecycle defines deterministic protection intent: initial SL, TP1 → breakeven, TP2 → TP1, explicit invalidation, and a monotonic rule that never loosens an already stricter stop.
 
-AutoTrader 1.5.4 uses that shared post-TP contract for automatic TP protection while retaining exchange verification, retry, persistence and recovery logic in the execution layer.
+AutoTrader 1.5.4 uses that shared post-TP contract for automatic TP protection while retaining exchange verification, retry, persistence and recovery logic in the execution layer. AI observations are not allowed to mutate this contract.
 
 Risk behavior is software behavior, not a guarantee of profitable trading. Crypto derivatives can result in rapid losses.
 
@@ -232,11 +251,12 @@ Risk behavior is software behavior, not a guarantee of profitable trading. Crypt
 
 The repository is under active development. Current priorities are:
 
-1. keep Scanner V2.6, AutoTrader and the frozen V2.5 baseline covered by deterministic CI;
+1. keep Scanner V2.6, AutoTrader and the frozen V2.5 strategy baseline covered by deterministic CI;
 2. expand reproducible replay datasets and strategy-level regression coverage without private account data;
-3. evolve shared risk/protocol interfaces only where they reduce duplicated safety logic without coupling strategy to execution;
-4. publish tagged development releases only after the reproducible release-readiness gate passes;
-5. keep credential scanning and the V2.5 frozen baseline as permanent safety gates.
+3. keep optional AI research non-blocking, separately measurable and credential-safe;
+4. evolve shared risk/protocol interfaces only where they reduce duplicated safety logic without coupling strategy to execution;
+5. publish tagged development releases only after the reproducible release-readiness gate passes;
+6. keep credential scanning and the V2.5 frozen baseline as permanent safety gates.
 
 See [CHANGELOG.md](CHANGELOG.md) and the open GitHub issues for tracked work.
 
@@ -244,7 +264,7 @@ See [CHANGELOG.md](CHANGELOG.md) and the open GitHub issues for tracked work.
 
 Contributions, bug reports and focused improvement proposals are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a pull request.
 
-Do not include credentials, private logs, account data, or copied `.env` files in issues or PRs.
+Do not include credentials, private logs, account data, AI-provider keys/responses, or copied `.env` files in issues or PRs.
 
 ## Disclaimer
 
