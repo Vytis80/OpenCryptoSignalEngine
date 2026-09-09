@@ -11,23 +11,24 @@ if old not in s:
     raise SystemExit('expected V2.5 storage migration anchor not found in patcher')
 s=s.replace(old,new,1)
 
-# 2) The one-shot patcher carries generated Python inside triple-quoted strings.
-# Escape newline sequences inside only those generated blocks so the emitted
-# f-strings contain \\n rather than literal source newlines.
-def escape_block(src,start,end):
-    i=src.find(start)
+# 2) Preserve escaped newlines inside generated Python triple-quoted blocks.
+def escape_block_after(src,prefix,start,end):
+    base=src.find(prefix)
+    if base<0:
+        raise SystemExit(f'prefix not found: {prefix[:60]!r}')
+    i=src.find(start,base+len(prefix))
     if i<0:
-        raise SystemExit(f'block start not found: {start[:60]!r}')
+        raise SystemExit(f'block start not found after prefix: {prefix[:60]!r}')
     j=src.find(end,i+len(start))
     if j<0:
-        raise SystemExit(f'block end not found after: {start[:60]!r}')
+        raise SystemExit(f'block end not found after prefix: {prefix[:60]!r}')
     body_start=i+len(start)
     body=src[body_start:j].replace('\\n','\\\\n')
     return src[:body_start]+body+src[j:]
 
-s=escape_block(s,'insert_before(p, "    if blocks:\\n", \'\'\'','\'\'\')\n\np = V25 / "alerts.py"')
-s=escape_block(s,'insert_before(p, "    if blocks:\\n", \'\'\'','\'\'\')\n\n# Storage schemas')
-s=escape_block(s,"V26_COMMANDS='''","'''\ninsert_before(V26/\"discord_control.py\"")
-s=escape_block(s,"V25_COMMANDS='''","'''\ninsert_before(V25/\"discord_control.py\"")
+s=escape_block_after(s,'p = V26 / "alerts.py"','insert_before(p, "    if blocks:\\n", \'\'\'','\'\'\')\n\np = V25 / "alerts.py"')
+s=escape_block_after(s,'p = V25 / "alerts.py"','insert_before(p, "    if blocks:\\n", \'\'\'','\'\'\')\n\n# Storage schemas')
+s=escape_block_after(s,"V26_COMMANDS='''","V26_COMMANDS='''","'''\ninsert_before(V26/\"discord_control.py\"")
+s=escape_block_after(s,"V25_COMMANDS='''","V25_COMMANDS='''","'''\ninsert_before(V25/\"discord_control.py\"")
 
 exec(compile(s,str(p),'exec'),{'__name__':'__main__'})
