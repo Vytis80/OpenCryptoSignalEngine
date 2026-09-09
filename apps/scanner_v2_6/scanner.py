@@ -9,6 +9,7 @@ from models import ActiveSignal
 from alerts import execute_alert,update_alert,management_alert,entry_window_closed_alert,early_alert,system_safety_alert
 from enhancements import analyze_early,shadow_assess,dynamic_validity
 from bridge_client import DemoBridgeClient
+from ai_judge import AIJudge
 
 log=logging.getLogger(__name__)
 
@@ -68,11 +69,17 @@ class TradeScanner:
         self.last_discord_command_audit_at=0.0
         self.demo_bridge=None
         self.demo_tasks=set()
+        self.ai_judge=None
 
     async def init(self):
         await self.storage.init()
         self._init_demo_bridge()
         self.session=aiohttp.ClientSession(headers={"User-Agent":"Bybit-5m-Trade-Scanner-V2.6-SAFE/1.0"})
+        if self.cfg.ai_judge_enabled and self.cfg.groq_api_key:
+            self.ai_judge=AIJudge(self.cfg,self.session)
+            log.info("AI JUDGE shadow enabled: %s",self.cfg.ai_judge_model)
+        elif self.cfg.ai_judge_enabled:
+            log.warning("AI JUDGE requested but GROQ_API_KEY is missing; shadow AI disabled")
         self.bybit=Bybit(self.cfg,self.session)
         await self.refresh_universe()
         now=time.time()
@@ -327,6 +334,22 @@ class TradeScanner:
             return sh
         except Exception as e:
             log.warning('Shadow assessment failed %s: %s',a.inst_id,e)
+            return None
+
+    async def _ai_for_execute(self,s,a,shadow=None):
+        """Persist an observational AI verdict. Never blocks bridge or mutates signal fields."""
+        if not self.ai_judge:return None
+        try:
+            j=await self.ai_judge.assess(a,shadow)
+            await self.storage.save_ai_judgement(s.id,j)
+            if j.ok:
+                log.info("AI JUDGE %s %s confidence=%s quality=%s risk=%s latency=%sms",
+                         a.inst_id,j.verdict,j.confidence,j.setup_quality,j.risk,j.latency_ms)
+            else:
+                log.warning("AI JUDGE unavailable %s: %s",a.inst_id,j.error)
+            return j
+        except Exception as e:
+            log.exception("AI JUDGE sidecar failed %s: %s",a.inst_id,e)
             return None
 
     async def _update_dynamic_validity(self,s,a):
@@ -779,7 +802,10 @@ class TradeScanner:
                 self._demo_execute_retry(s),
                 f"demo-execute-{s.id}"
             )
-        delivered=await execute_alert(self.session,self.cfg,a,s.expires_at,sh)
+        # The Demo bridge task above is spawned before the AI await. AI cannot delay,
+        # veto or mutate AutoTrader execution; it only enriches the Discord/research record.
+        ai_judgement=await self._ai_for_execute(s,a,sh)
+        delivered=await execute_alert(self.session,self.cfg,a,s.expires_at,sh,ai_judgement)
         self._record_delivery(delivered,f"EXECUTE {a.inst_id} signal #{s.id}",critical=True)
         log.warning("EXECUTE %s %s score=%.0f entry=%.8g SL=%.8g TP2=%.8g",
                     a.side,a.inst_id,a.score,a.price,a.sl,a.tp2)

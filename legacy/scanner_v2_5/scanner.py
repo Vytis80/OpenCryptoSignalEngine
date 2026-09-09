@@ -10,6 +10,7 @@ from models import ActiveSignal
 from alerts import execute_alert,update_alert,management_alert,entry_window_closed_alert,early_alert,early_cancelled_alert
 from enhancements import analyze_early,shadow_assess,dynamic_validity
 from bridge_client import DemoBridgeClient
+from ai_judge import AIJudge
 from smart_engine import MODEL_VERSION as SMART_MODEL_VERSION,assess_management,assess_signal
 
 log=logging.getLogger(__name__)
@@ -57,11 +58,17 @@ class TradeScanner:
         self.last_bridge_error=""
         self.bridge_outbox_status={}
         self.smart_management={}
+        self.ai_judge=None
 
     async def init(self):
         await self.storage.init()
         self._init_demo_bridge()
         self.session=aiohttp.ClientSession(headers={"User-Agent":"Bybit-5m-Trade-Scanner-V2.5-SAFE/1.0"})
+        if self.cfg.ai_judge_enabled and self.cfg.groq_api_key:
+            self.ai_judge=AIJudge(self.cfg,self.session)
+            log.info("AI JUDGE shadow enabled: %s",self.cfg.ai_judge_model)
+        elif self.cfg.ai_judge_enabled:
+            log.warning("AI JUDGE enabled but GROQ_API_KEY is missing; AI verdicts unavailable")
         self.bybit=Bybit(self.cfg,self.session)
         await self.refresh_universe()
         now=time.time()
@@ -331,6 +338,22 @@ class TradeScanner:
             return assessment
         except Exception as e:
             log.warning("SMART signal assessment failed %s: %s",a.inst_id,e)
+            return None
+
+    async def _ai_for_execute(self,s,a,shadow=None,smart=None):
+        """Persist an observational AI verdict. Never blocks bridge or mutates trade state."""
+        if not self.ai_judge:return None
+        try:
+            j=await self.ai_judge.assess(a,shadow,smart)
+            await self.storage.save_ai_judgement(s.id,j)
+            if j.ok:
+                log.info("AI JUDGE %s %s confidence=%s quality=%s risk=%s latency=%sms tokens=%s",
+                         a.inst_id,j.verdict,j.confidence,j.setup_quality,j.risk,j.latency_ms,j.total_tokens)
+            else:
+                log.warning("AI JUDGE unavailable %s: %s",a.inst_id,j.error)
+            return j
+        except Exception as e:
+            log.exception("AI JUDGE sidecar failed %s: %s",a.inst_id,e)
             return None
 
     async def _update_dynamic_validity(self,s,a,c1=None):
@@ -661,7 +684,10 @@ class TradeScanner:
         # This is a sidecar: bridge failure never changes scanner strategy.
         if self.demo_bridge:
             await self._queue_demo_execute(s)
-        await execute_alert(self.session,self.cfg,a,s.expires_at,sh,smart)
+        # V2.5 bridge is already queued above; AI remains observational and cannot
+        # veto or change Entry/SL/TP/size/management.
+        ai_judgement=await self._ai_for_execute(s,a,sh,smart)
+        await execute_alert(self.session,self.cfg,a,s.expires_at,sh,smart,ai_judgement)
         log.warning("EXECUTE %s %s score=%.0f smart=%s/%.0f entry=%.8g SL=%.8g TP2=%.8g",
                     a.side,a.inst_id,a.score,getattr(s,"smart_status","PENDING"),
                     getattr(s,"smart_score",0),a.price,a.sl,a.tp2)

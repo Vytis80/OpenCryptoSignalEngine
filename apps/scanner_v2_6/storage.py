@@ -41,6 +41,15 @@ class Storage:
               would_block INTEGER NOT NULL, status TEXT NOT NULL, reasons TEXT,
               suggested_sl REAL, suggested_sl_atr REAL, micro_momentum_pct REAL
             );
+            CREATE TABLE IF NOT EXISTS ai_judgements(
+              signal_id INTEGER PRIMARY KEY, inst_id TEXT NOT NULL, checked_at REAL NOT NULL,
+              provider TEXT NOT NULL, model TEXT NOT NULL, status TEXT NOT NULL,
+              verdict TEXT, confidence INTEGER, setup_quality TEXT, risk TEXT,
+              summary TEXT, strengths TEXT, risks TEXT, latency_ms INTEGER DEFAULT 0,
+              error TEXT, prompt_version TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_ai_judgements_time ON ai_judgements(checked_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_judgements_verdict ON ai_judgements(verdict);
             """)
             cols={r[1] for r in await (await db.execute("PRAGMA table_info(signals)")).fetchall()}
             migrations={
@@ -107,6 +116,45 @@ class Storage:
             db.row_factory=aiosqlite.Row
             c=await db.execute("SELECT * FROM shadow_checks WHERE signal_id=?",(sid,));r=await c.fetchone()
             return dict(r) if r else None
+
+    async def save_ai_judgement(self,sid,j):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute("""INSERT INTO ai_judgements(
+              signal_id,inst_id,checked_at,provider,model,status,verdict,confidence,setup_quality,risk,
+              summary,strengths,risks,latency_ms,error,prompt_version
+              ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+              ON CONFLICT(signal_id) DO UPDATE SET checked_at=excluded.checked_at,provider=excluded.provider,
+                model=excluded.model,status=excluded.status,verdict=excluded.verdict,confidence=excluded.confidence,
+                setup_quality=excluded.setup_quality,risk=excluded.risk,summary=excluded.summary,
+                strengths=excluded.strengths,risks=excluded.risks,latency_ms=excluded.latency_ms,
+                error=excluded.error,prompt_version=excluded.prompt_version""",
+              (sid,j.inst_id,j.checked_at,j.provider,j.model,j.status,j.verdict,j.confidence,j.setup_quality,j.risk,
+               j.summary,json.dumps(j.strengths,ensure_ascii=False),json.dumps(j.risks,ensure_ascii=False),
+               j.latency_ms,j.error,j.prompt_version))
+            await db.commit()
+
+    async def ai_recent(self,limit=5):
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory=aiosqlite.Row
+            c=await db.execute("""SELECT j.*,s.side,s.quality scanner_quality,s.score scanner_score,
+              s.status signal_status,s.close_reason,s.tp1_hit,s.tp2_hit,s.tp3_hit,s.max_gain_pct,s.max_drawdown_pct
+              FROM ai_judgements j JOIN signals s ON s.id=j.signal_id
+              ORDER BY j.checked_at DESC LIMIT ?""",(limit,))
+            return [dict(x) for x in await c.fetchall()]
+
+    async def ai_stats(self,since):
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory=aiosqlite.Row
+            c=await db.execute("""SELECT j.status,j.verdict,COUNT(*) n,
+              SUM(s.status='CLOSED') closed_n,SUM(s.close_reason='SL') sl,
+              SUM(s.close_reason='SL' AND s.tp1_hit=0) full_sl,
+              SUM(s.tp1_hit=1) tp1,SUM(s.tp2_hit=1) tp2,SUM(s.tp3_hit=1) tp3,
+              AVG(j.confidence) avg_confidence,AVG(j.latency_ms) avg_latency_ms,
+              AVG(CASE WHEN s.entry>0 AND ABS(s.entry-s.sl)>0 THEN s.max_gain_pct/(ABS(s.entry-s.sl)/s.entry*100.0) END) avg_mfe_r,
+              AVG(CASE WHEN s.entry>0 AND ABS(s.entry-s.sl)>0 THEN ABS(s.max_drawdown_pct)/(ABS(s.entry-s.sl)/s.entry*100.0) END) avg_mae_r
+              FROM ai_judgements j JOIN signals s ON s.id=j.signal_id
+              WHERE s.confirmed_at>=? GROUP BY j.status,j.verdict ORDER BY j.status,j.verdict""",(since,))
+            return [dict(x) for x in await c.fetchall()]
 
     async def load_active(self):
         async with aiosqlite.connect(self.path) as db:

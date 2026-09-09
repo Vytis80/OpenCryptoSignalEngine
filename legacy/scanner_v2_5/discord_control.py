@@ -348,6 +348,47 @@ class TradeDiscord(discord.Client):
                 lines.append(f"• **{r['setup_type']}** n={n} · TP1 `{(r['tp1'] or 0)/n*100:.0f}%` · TP2 `{(r['tp2'] or 0)/n*100:.0f}%` · TP3 `{(r['tp3'] or 0)/n*100:.0f}%` · SL `{(r['sl'] or 0)/n*100:.0f}%` · MFE `{(r['avg_mfe_r'] or 0):.2f}R` · MAE `{(r['avg_mae_r'] or 0):.2f}R`")
             await i.followup.send("\n".join(lines)[:7900],ephemeral=True)
 
+        @self.tree.command(name="bybit_ai_last",description="Latest GPT-OSS 120B AI Judge verdicts")
+        async def ai_last(i):
+            if not await self.defer(i):return
+            rows=await self.s.storage.ai_recent(5)
+            if not rows:
+                await i.followup.send("No V2.5 AI Judge sample yet. New EXECUTE signals will collect it.",ephemeral=True);return
+            lines=["🤖 **V2.5 GPT-OSS AI JUDGE — LATEST** · shadow only"]
+            for r in rows:
+                if r['status']!='OK':
+                    lines.append(f"• **{r['inst_id']} {r['side']}** · ⚪ unavailable · `{(r.get('error') or '')[:90]}`");continue
+                outcome=r.get('close_reason') or r.get('signal_status');icon='✅' if r['verdict']=='APPROVE' else '⛔'
+                lines.append(f"• **{r['inst_id']} {r['side']}** · {icon} **{r['verdict']} {r['confidence']}/100** · AI {r['setup_quality']} / {r['risk']} · outcome **{outcome}** · `{r.get('total_tokens') or 0} tok`\n  _{(r.get('summary') or '')[:190]}_")
+            await i.followup.send("\n".join(lines)[:1950],ephemeral=True)
+
+        @self.tree.command(name="bybit_ai_stats",description="V2.5 AI APPROVE/REJECT vs signal outcomes")
+        @app_commands.describe(days="1–30")
+        async def ai_stats(i,days:app_commands.Range[int,1,30]=7):
+            if not await self.defer(i):return
+            rows=await self.s.storage.ai_stats(time.time()-days*86400)
+            if not rows:
+                await i.followup.send("No V2.5 AI Judge sample yet.",ephemeral=True);return
+            lines=[f"🤖 **V2.5 AI JUDGE STATS {days}d** · shadow only"]
+            for r in rows:
+                n=r['n'] or 1
+                if r['status']!='OK':
+                    lines.append(f"• ⚪ **AI ERROR** n={n} · latency `{(r.get('avg_latency_ms') or 0):.0f} ms`");continue
+                closed=r.get('closed_n') or 0;icon='✅' if r.get('verdict')=='APPROVE' else '⛔'
+                lines.append(f"• {icon} **{r.get('verdict')}** n={n}, closed={closed} · conf `{(r.get('avg_confidence') or 0):.0f}` · TP1 `{(r.get('tp1') or 0)/n*100:.0f}%` · TP2 `{(r.get('tp2') or 0)/n*100:.0f}%` · full SL `{(r.get('full_sl') or 0)/closed*100 if closed else 0:.0f}%` · MFE `{(r.get('avg_mfe_r') or 0):.2f}R` / MAE `{(r.get('avg_mae_r') or 0):.2f}R`")
+            lines.append("_V2.5 and V2.6 AI samples must be evaluated separately._")
+            await i.followup.send("\n".join(lines)[:1950],ephemeral=True)
+
+        @self.tree.command(name="bybit_ai_usage",description="Groq token usage recorded by V2.5 AI Judge")
+        @app_commands.describe(hours="1–168")
+        async def ai_usage(i,hours:app_commands.Range[int,1,168]=24):
+            if not await self.defer(i):return
+            r=await self.s.storage.ai_usage(time.time()-hours*3600);n=int(r.get('requests') or 0)
+            if not n:
+                await i.followup.send(f"No V2.5 AI requests recorded in the last {hours}h.",ephemeral=True);return
+            total=int(r.get('total_tokens') or 0)
+            await i.followup.send(f"🧮 **V2.5 GPT-OSS USAGE — {hours}h**\nRequests **{n}** · OK **{int(r.get('ok_requests') or 0)}** · failed **{int(r.get('failed_requests') or 0)}**\nPrompt tokens **{int(r.get('prompt_tokens') or 0):,}**\nCompletion tokens **{int(r.get('completion_tokens') or 0):,}**\nTotal tokens **{total:,}** · avg/request **{(r.get('avg_total_tokens') or 0):,.0f}**\nAvg latency **{(r.get('avg_latency_ms') or 0):.0f} ms**\n_Recorded from Groq API response usage; V2.6 usage is separate._",ephemeral=True)
+
         @self.tree.command(name="bybit_shadow_stats",description="Compare anti-SL SHADOW decisions with real outcomes")
         @app_commands.describe(days="1–30")
         async def shadow_stats(i,days:app_commands.Range[int,1,30]=7):
@@ -480,6 +521,7 @@ class TradeDiscord(discord.Client):
                 "`/bybit_potentials` `/bybit_hotlist` `/bybit_bias` `/bybit_active`\n"
                 "`/bybit_recent` `/bybit_performance` `/bybit_stats` `/bybit_setup_stats` `/bybit_shadow_stats`\n"
                 "`/bybit_smart_active` `/bybit_smart_stats`\n"
+                "`/bybit_ai_last` `/bybit_ai_stats` `/bybit_ai_usage`\n"
                 "`/bybit_sources` `/bybit_risk` `/bybit_version`\n\n"
                 "Commands use the `bybit_` prefix so they cannot be confused with Pump Hunter or Radar commands.",
                 ephemeral=True)

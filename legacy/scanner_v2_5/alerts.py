@@ -12,7 +12,7 @@ async def _post(session,url,username,embed):
     except Exception as e:
         log.warning("Discord webhook failed (scanner continues): %s",e);return False
 
-async def execute_alert(session,cfg,a,expires,shadow=None,smart=None):
+async def execute_alert(session,cfg,a,expires,shadow=None,smart=None,ai_judgement=None):
     side_icon="🟢" if a.side=="LONG" else "🔴"
     reasons="\n".join("• "+x for x in a.reasons[:7]) or "• Multi-timeframe alignment"
     blocks="\n".join("• "+x for x in a.blocks[:5])
@@ -57,6 +57,25 @@ async def execute_alert(session,cfg,a,expires,shadow=None,smart=None):
                     f"{smart_note[:850]}",
             "inline":False,
         })
+    if ai_judgement is not None:
+        if getattr(ai_judgement,"ok",False):
+            approve=getattr(ai_judgement,"verdict","")=="APPROVE"
+            verdict="✅ **APPROVE**" if approve else "⛔ **REJECT**"
+            strengths="; ".join(getattr(ai_judgement,"strengths",[])[:3]) or "No major strengths listed."
+            risks="; ".join(getattr(ai_judgement,"risks",[])[:3]) or "No major risks listed."
+            value=(
+                f"{verdict} · confidence **{getattr(ai_judgement,'confidence',0)}/100** · "
+                f"quality **{getattr(ai_judgement,'setup_quality','C')}** · risk **{getattr(ai_judgement,'risk','MEDIUM')}**\n"
+                f"{getattr(ai_judgement,'summary','')[:380]}\n"
+                f"Strengths: {strengths[:260]}\nRisks: {risks[:260]}\n"
+                f"`{getattr(ai_judgement,'model','')}` · {getattr(ai_judgement,'latency_ms',0)} ms · "
+                f"tokens `{getattr(ai_judgement,'total_tokens',0)}`\n"
+                "*AI SHADOW ONLY — it did not change the V2.5 strategy or AutoTrader decision.*"
+            )
+        else:
+            value=(f"⚪ **UNAVAILABLE** · {getattr(ai_judgement,'error','No AI result')[:420]}\n"
+                   "*AI SHADOW ONLY — it did not change the V2.5 strategy or AutoTrader decision.*")
+        embed["fields"].append({"name":"GPT-OSS AI Judge · observation only","value":value[:1024],"inline":False})
     if blocks:
         embed["fields"].append({"name":"Warnings filtered","value":blocks[:1024],"inline":False})
     return await _post(session,cfg.discord_webhook_url,cfg.discord_username,embed)

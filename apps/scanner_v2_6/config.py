@@ -109,6 +109,15 @@ class Config:
     shadow_max_1m_spike_atr:float=_f("SHADOW_MAX_1M_SPIKE_ATR",0.65)
     shadow_min_aligned_1m:int=_i("SHADOW_MIN_ALIGNED_1M",2)
 
+    # Optional GPT-OSS AI Judge — observational second opinion only.
+    # Public default is opt-in: enabling sends structured signal evidence to the configured provider.
+    ai_judge_enabled:bool=_b("AI_JUDGE_ENABLED",False)
+    groq_api_key:str=os.getenv("GROQ_API_KEY","").strip()
+    ai_judge_model:str=os.getenv("AI_JUDGE_MODEL","openai/gpt-oss-120b").strip()
+    ai_judge_base_url:str=os.getenv("AI_JUDGE_BASE_URL","https://api.groq.com/openai/v1").strip()
+    ai_judge_timeout_sec:float=_f("AI_JUDGE_TIMEOUT_SEC",5.0)
+    ai_judge_reasoning_effort:str=os.getenv("AI_JUDGE_REASONING_EFFORT","low").strip().lower()
+
     # Tracking
     performance_track_sec:int=_i("PERFORMANCE_TRACK_SEC",3600)
     db_path:str=os.getenv("DB_PATH","data/bybit_crypto_scanner_v2_6.db")
