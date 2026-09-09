@@ -10,8 +10,14 @@ async def main():
     with tempfile.TemporaryDirectory() as td:
         dbp=Path(td)/"legacy-v25.db"
         con=sqlite3.connect(dbp)
-        con.execute("CREATE TABLE signals(id INTEGER PRIMARY KEY, inst_id TEXT, status TEXT)")
-        con.execute("INSERT INTO signals VALUES(1,'TESTUSDT','ACTIVE')")
+        # Minimal pre-AI schema that still satisfies the scanner's pre-existing
+        # indexes. This test is about adding the AI table without replacing or
+        # deleting an existing signals table/row.
+        con.execute(
+            "CREATE TABLE signals("
+            "id INTEGER PRIMARY KEY, inst_id TEXT, status TEXT, confirmed_at REAL)"
+        )
+        con.execute("INSERT INTO signals VALUES(1,'TESTUSDT','ACTIVE',1.0)")
         con.commit();con.close()
 
         st=Storage(str(dbp),5000)
