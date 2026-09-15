@@ -1,6 +1,6 @@
 # Architecture
 
-OpenCryptoSignalEngine currently contains three related Bybit components with explicit lifecycle boundaries.
+OpenCryptoSignalEngine contains three related Bybit components plus shared exchange-independent libraries.
 
 ## Component view
 
@@ -15,12 +15,13 @@ OpenCryptoSignalEngine currently contains three related Bybit components with ex
                        │   Scanner V2.6 (active)  │
                        │ MTF analysis + signals   │
                        └──────┬───────────┬───────┘
-                              │           │ optional, EXECUTE-only
+                              │           │ optional research only
                               │           ▼
                               │   ┌────────────────────────┐
-                              │   │ GPT-OSS AI Judge       │
-                              │   │ observation / research │
+                              │   │ AI Judge V2 Blind     │
+                              │   │ SHADOW telemetry      │
                               │   └────────────────────────┘
+                              │
                               │ signed EXECUTE / management events
                               ▼
                        ┌──────────────────────────┐
@@ -35,38 +36,61 @@ OpenCryptoSignalEngine currently contains three related Bybit components with ex
                        └──────────────────────────┘
 
         ┌────────────────────────────────────────────────────┐
-        │ Scanner V2.5.1 (frozen strategy / replay baseline) │
-        │ + optional observation-only AI research sidecar    │
+        │ Scanner V2.5.1 reference family                    │
+        │ + TP-ladder safety hotfix + SHADOW AI research     │
         └────────────────────────────────────────────────────┘
 ```
 
 ## Scanner boundary
 
-The scanner owns market-data ingestion, multi-timeframe context, signal generation, entry validity and signal lifecycle. It does not need exchange-account credentials for public market scanning.
+The scanner owns public market-data ingestion, multi-timeframe context, signal generation, entry validity and signal lifecycle. Public scanning does not require exchange-account credentials.
 
-The public V2.6 tree keeps Discord, bridge and optional AI-provider configuration in environment variables. Account-specific IDs and credentials are intentionally absent from committed defaults.
+The scanner must finish deterministic signal validation before any optional AI research call. A confirmed `EXECUTE` is persisted first; if the Demo AutoTrader bridge is enabled, the bridge path is queued before waiting for AI.
+
+## V2.5 target-ladder safety boundary
+
+V2.5 is retained as a historical comparison family, but safety defects are not preserved for the sake of immutability.
+
+A 2026-09-11 audit found that obstacle-aware TP capping could compress TP1/TP2/TP3 independently and produce a non-monotonic target ladder. The final ladder safety invariant is therefore:
+
+```text
+LONG : entry < TP1 < TP2 < TP3
+SHORT: entry > TP1 > TP2 > TP3
+```
+
+A malformed ladder must not become `EXECUTE`. This guard is part of deterministic signal safety and is independent of AI research.
 
 ## AI Judge boundary
 
-The GPT-OSS AI Judge is an optional outbound research sidecar, not part of the deterministic execution gate. Public examples keep it disabled until the operator explicitly enables it and supplies a local provider credential.
+LIVE research moved from the original V1 sidecar to versioned V2 Blind contracts:
 
-For V2.6, a confirmed EXECUTE is persisted and the optional Demo AutoTrader bridge task is queued **before** awaiting the AI provider. AI timeout, network failure, APPROVE/REJECT/CAUTION verdicts or model availability therefore cannot veto the already-confirmed signal, change Entry/SL/TP/size/management, or become a prerequisite for bridge delivery.
+- V2.5: `ai-judge-v2-blind-v25`
+- V2.6: `ai-judge-v2-blind-v26`
 
-V2.5 keeps the same observation-only contract. Its strategy remains frozen while its AI research data is stored separately from V2.6. V2.5 additionally tracks provider token usage for cost/usage analysis.
+V2 Blind records `edge_score`, `risk_score`, confidence and structured reason codes for later calibration. V1 history remains retained. V2.5 and V2.6 samples remain separate.
 
-Enabling the sidecar sends structured setup/signal evidence to the configured external AI endpoint. Provider keys and returned runtime research data belong in local configuration/databases, not Git history. Live provider probes are intentionally outside public CI.
+The AI layer is not an execution gate. It has no authority to:
+
+- create or veto an `EXECUTE`;
+- change Entry, SL, TP levels, leverage or size;
+- change management actions;
+- control bridge delivery or AutoTrader execution.
+
+The 2026-09-14 audit did not show enough predictive separation to justify promotion, so AI remains SHADOW-only. See `research-status-2026-09-14.md`.
+
+The exact latest V2 Blind LIVE source still requires a fresh sanitized deployment import. Repository documentation may record validated research conclusions, but must not claim exact source parity before that import is complete.
 
 ## Bridge boundary
 
-The scanner-to-AutoTrader bridge is optional and uses a shared HMAC secret. The secret belongs only in local `.env` files on the participating hosts. It is not a repository constant.
+The scanner-to-AutoTrader bridge is optional and uses protocol v1 from `src/open_crypto_signal_engine/protocol/`.
 
-The downstream executor should reject malformed, stale, duplicated, or unauthenticated events.
+The protocol provides deterministic JSON, HMAC-SHA256 authentication over the raw body, timestamp freshness checks, protocol-version handling and common event validation. The HMAC secret belongs only in local ignored configuration.
+
+The downstream executor rejects malformed, stale, duplicated or unauthenticated events. Invalid target ladders must be rejected upstream before an `EXECUTE` is emitted.
 
 ## Risk lifecycle boundary
 
-`src/open_crypto_signal_engine/risk/lifecycle.py` defines the deterministic protection state machine without importing Bybit, Discord, storage, AI-provider or network code. A validated risk plan must contain the entry, initial stop and ordered TP1/TP2/TP3 levels before execution begins.
-
-The shared lifecycle has four explicit states:
+`src/open_crypto_signal_engine/risk/lifecycle.py` defines deterministic protection intent without importing Bybit, Discord, storage, AI-provider or network code.
 
 ```text
 INITIAL
@@ -80,20 +104,20 @@ TP1_LOCKED         desired SL = TP1
 Any state ── explicit invalidation ──▶ INVALIDATED / close required
 ```
 
-The evaluator is monotonic: if a caller already has a stricter stop than the milestone target, that stop is preserved rather than loosened. LONG and SHORT behavior is symmetric and covered by deterministic unit tests.
-
-This module describes **what protection is required**. Exchange adapters and executors remain responsible for price quantization, order submission, fill verification, retries, persistence, and proving that the requested stop actually exists on the exchange.
+The evaluator is monotonic: a stricter existing stop is never loosened. Exchange adapters remain responsible for price quantization, order submission, fill verification, retries and persistence.
 
 ## Execution boundary
 
-The AutoTrader is intended for Bybit Demo Trading. It owns order placement, position reconciliation, TP fill tracking, stop protection, margin-safety checks, and durable execution state.
+The AutoTrader is intended for Bybit Demo Trading. It owns order placement, position reconciliation, TP fill tracking, stop protection, margin-safety checks and durable execution state.
 
-The scanner owns signal intent; the executor owns safe interaction with the demo exchange. The shared risk lifecycle is deliberately exchange-independent so its state transitions can be tested without credentials or network access.
+The scanner owns signal intent; the executor owns safe interaction with the demo exchange. AI research remains outside both authority boundaries.
 
-## Versioning boundary
+## Research boundary
 
-V2.5.1 is frozen under `legacy/scanner_v2_5`. V2.6 evolves independently under `apps/scanner_v2_6`. Keeping both trees allows deterministic replay/regression comparisons without rewriting historical strategy behavior. Observation-only research sidecars must remain separately measurable and must not silently change the frozen signal core.
+Failed experiments remain documented instead of being silently reintroduced. The Historical Pattern V1 raw candle-shape walk-forward was not promoted because its edge/expectancy signals had near-zero rank correlation with realized R and its would-block cohort was profitable in the observed sample.
+
+Any future historical-context model must begin as a new versioned SHADOW experiment. V2.6 remains the unchanged benchmark for that research line.
 
 ## Data and secret boundary
 
-Runtime databases, AI responses, provider token-usage state, logs, `.env` files, secret backups, account history and cloud/server configuration are not source artifacts. See `credential-safety.md`.
+Runtime databases, AI responses, provider token-usage state, logs, `.env` files, secret backups, account/order history and cloud/server configuration are not source artifacts. See `credential-safety.md`.
