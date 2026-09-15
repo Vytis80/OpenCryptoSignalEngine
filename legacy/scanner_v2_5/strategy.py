@@ -43,6 +43,11 @@ def _market_regime(v1,v15,v5,c1h,c15,c5):
     if sep1<.16 and sep15<.14 and slope1<.10 and slope15<.12:return "RANGE",min(strength,45.0),expansion
     return "TRANSITION",strength,expansion
 
+def _valid_target_ladder(side,entry,tp1,tp2,tp3):
+    if side=="LONG":return entry<tp1<tp2<tp3
+    if side=="SHORT":return entry>tp1>tp2>tp3
+    return False
+
 def _trigger_long(c5,v5):
     if len(c5)<25:return False,"NONE",0
     cur,prev=c5[-1],c5[-2]
@@ -205,8 +210,11 @@ def analyze(inst_id,ticker,c1h,c15,c5,btc_views,eth_views,cfg):
         rr=0
     score=max(0,min(100,score))
     fresh=not too_late
+    target_ladder_ok=_valid_target_ladder(side,price,tp1,tp2,tp3)
+    if not target_ladder_ok:
+        blocks.append("invalid TP ladder ordering")
 
-    execute=(score>=cfg.execute_score and trigger and bias_ok and fresh and
+    execute=(score>=cfg.execute_score and trigger and bias_ok and fresh and target_ladder_ok and
              ticker.spread_pct<=cfg.max_spread_pct and rr>=cfg.min_rr_tp2 and
              not (cfg.context_hard_block and context_opposes))
     if execute:
