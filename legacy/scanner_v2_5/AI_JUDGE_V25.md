@@ -1,27 +1,27 @@
-# V2.5 AI Judge
+# V2.5 AI Judge V1 — historical public contract
 
-The frozen V2.5.1 strategy baseline can optionally run an observational GPT-OSS AI Judge after a confirmed `EXECUTE` signal. This adds research telemetry only; it does not change the preserved V2.5 strategy.
+This file documents the first public V2.5 observational GPT-OSS AI Judge contract imported on 2026-09-09. LIVE research later moved to **AI Judge V2 Blind SHADOW** under `ai-judge-v2-blind-v25`; see `AI_JUDGE_V2_BLIND.md`.
+
+The V1 implementation/history is retained for auditability and must not be mistaken for the latest LIVE research contract.
 
 ## Invariant
 
-V2.5 still decides EXECUTE, Entry, SL, TP and management without AI. The Demo AutoTrader bridge is queued before waiting for AI, so AI latency/failure cannot veto or alter the trade. Legacy SHADOW and SMART remain additional evidence only.
+V2.5 decides EXECUTE, Entry, SL, TP and management without AI. The Demo AutoTrader bridge is queued before waiting for AI, so AI latency/failure cannot veto or alter the trade. Legacy SHADOW and SMART remain research evidence only.
 
-The default provider configuration uses Groq's OpenAI-compatible API with `openai/gpt-oss-120b`, low reasoning effort and a five-second timeout. The public `.env.example` keeps AI disabled until the operator explicitly opts in and supplies a local API key.
+## Stored V1 research data
 
-## Stored research data
+V1 stored verdict, confidence, quality, risk, summary, latency and provider token usage (`prompt_tokens`, `completion_tokens`, `total_tokens`) in the local `ai_judgements` table. Runtime databases are never committed.
 
-Each result is stored in the V2.5 scanner's local `ai_judgements` table with verdict, confidence, quality, risk, summary, latency and Groq token usage (`prompt_tokens`, `completion_tokens`, `total_tokens`). Runtime databases are never committed.
-
-Discord commands:
+Historical inspection commands:
 
 - `/bybit_ai_last`
 - `/bybit_ai_stats`
 - `/bybit_ai_usage`
 
-V2.5 and V2.6 AI samples must be evaluated separately. A single successful API call is only a connectivity/smoke result, not evidence of predictive edge.
+V2.5 and V2.6 research remains separate. A successful API call is connectivity evidence, not predictive-edge evidence.
 
 ## Privacy and cost
 
-When explicitly enabled, structured signal evidence is sent to the configured external AI provider. Keep `GROQ_API_KEY` local, review the provider's terms/costs, and do not send account secrets or private runtime state.
+When explicitly enabled, structured signal evidence is sent to the configured external AI provider. Keep provider credentials local and do not send account secrets or private runtime state.
 
 CI remains credential-free and network-free for this feature.
