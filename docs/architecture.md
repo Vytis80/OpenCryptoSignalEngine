@@ -41,6 +41,14 @@ OpenCryptoSignalEngine contains three related Bybit components plus shared excha
         └────────────────────────────────────────────────────┘
 ```
 
+## Deployment boundary
+
+Current LIVE development/research workloads run on **Google Cloud Compute Engine virtual machines** as long-running Linux/Python services. Cloud hosting is an operational concern rather than part of the trading logic.
+
+The public repository intentionally excludes Google Cloud project identifiers, VM names, IP addresses, service-account credentials, SSH material, private network details and deployment-specific runtime state. Application code and safe templates should remain portable to another Linux host without depending on private Google Cloud metadata.
+
+A planned Jarvis integration will sit above this deployment/application boundary as an optional monitoring, diagnostics and research-orchestration layer. It must not bypass deterministic scanner validation, risk controls or the signed AutoTrader execution boundary.
+
 ## Scanner boundary
 
 The scanner owns public market-data ingestion, multi-timeframe context, signal generation, entry validity and signal lifecycle. Public scanning does not require exchange-account credentials.
