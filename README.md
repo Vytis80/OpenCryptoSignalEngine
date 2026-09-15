@@ -38,6 +38,12 @@ Shared TP1 → breakeven → TP2 → TP1 protection lifecycle
 
 AI is intentionally outside the execution authority boundary. It cannot veto or mutate a confirmed trade.
 
+## Runtime deployment
+
+Current LIVE development/research deployments run on **Google Cloud Compute Engine virtual machines** as long-running Python services. The deployment model is intentionally separated from the public source tree: instance names, IP addresses, Google Cloud project identifiers, service-account credentials, SSH material and environment-specific runtime state are not committed.
+
+The public repository contains portable application code, tests and safe configuration templates so the components can be reproduced on another Linux host without depending on private Google Cloud metadata.
+
 ## Scanner V2.6
 
 - Bybit USDT Linear Perpetual universe
@@ -193,6 +199,10 @@ See [docs/credential-safety.md](docs/credential-safety.md) and [SECURITY.md](SEC
 
 If a credential ever existed in an archive, backup, shell history, chat or commit, rotate it at the provider; deleting a copy is not equivalent to rotation.
 
+## Coming next: Jarvis Integration
+
+A planned **Jarvis agent layer** will provide optional monitoring, diagnostics, research orchestration and maintainer/operator workflows across the project. Jarvis is planned as an additional control-plane layer, not a replacement for deterministic scanner, risk-management or execution logic. It must not silently bypass signal validation, risk controls or the signed AutoTrader boundary.
+
 ## Project status
 
 Current priorities are:
@@ -202,7 +212,8 @@ Current priorities are:
 3. keep AI research SHADOW-only until predictive value is demonstrated on larger closed-signal samples;
 4. import the exact current V2 Blind source from a fresh sanitized LIVE snapshot before claiming full source parity;
 5. keep failed historical-pattern gating ideas documented instead of silently reintroducing them;
-6. maintain permanent credential scanning and reproducible release gates.
+6. maintain permanent credential scanning and reproducible release gates;
+7. design the future Jarvis integration without weakening deterministic execution and security boundaries.
 
 ## Disclaimer
 
