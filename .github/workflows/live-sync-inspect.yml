@@ -1,0 +1,55 @@
+name: Inspect live sync payload
+
+on:
+  push:
+    branches: [sync/live-source-2026-09-15]
+    paths:
+      - '.sync/live_payload/**'
+      - '.github/workflows/live-sync-inspect.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Reconstruct payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .sync/live_payload/part_* > /tmp/live_payload.b64
+          base64 -d /tmp/live_payload.b64 > /tmp/live_payload.bin
+          file /tmp/live_payload.bin
+          python - <<'PY'
+          from pathlib import Path
+          import gzip, io, tarfile, zipfile
+          p=Path('/tmp/live_payload.bin')
+          b=p.read_bytes()
+          print('bytes', len(b), 'prefix', b[:16].hex())
+          if b[:2] == b'\x1f\x8b':
+              raw=gzip.decompress(b)
+              print('gzip decompressed bytes', len(raw), 'prefix', raw[:32])
+              Path('/tmp/live_payload.raw').write_bytes(raw)
+              try:
+                  with tarfile.open(fileobj=io.BytesIO(raw), mode='r:*') as t:
+                      names=t.getnames()
+                      print('TAR MEMBERS', len(names))
+                      for n in names: print(n)
+              except Exception as e:
+                  print('not tar:', type(e).__name__, e)
+                  try:
+                      text=raw.decode('utf-8')
+                      print('TEXT PREFIX')
+                      print(text[:4000])
+                  except Exception as e2:
+                      print('not utf8:', type(e2).__name__, e2)
+          elif zipfile.is_zipfile(p):
+              with zipfile.ZipFile(p) as z:
+                  print('ZIP MEMBERS', len(z.namelist()))
+                  for n in z.namelist(): print(n)
+          else:
+              print('unknown payload format')
+          PY
